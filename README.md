@@ -1,36 +1,30 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LEVAN AI Business OS — Phase 1 MVP
 
-## Getting Started
+企業リード登録 → Agent 01（SEO分析・見込みスコアリング）→ Agent 02（営業文生成）→ 人間承認 → 送信 → 返信管理、までを実装した最初のスライス。
 
-First, run the development server:
+## セットアップ
 
 ```bash
+docker compose up -d      # ローカルPostgres
+npm install
+npx prisma migrate dev
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`http://localhost:3000` — Dashboard / Leads 画面。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## AI APIキー
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`.env` の `ANTHROPIC_API_KEY` を空のままにすると、各エージェントは決定論的なスタブ応答を返す（コストゼロでフロー全体を確認できる）。実際のLLM呼び出しを試す場合はキーを設定する。
 
-## Learn More
+## 構成
 
-To learn more about Next.js, take a look at the following resources:
+- `src/agents/` — Agent 01 (Lead Research, Level 3 自動) / Agent 02 (Sales, Level 1 承認制)
+- `src/agents/decisionLog.ts` — 全エージェントの判断をAI Decision Logに記録
+- `src/agents/llm.ts` — LLM呼び出しの一本化窓口（トークン・コスト計測）
+- `prisma/schema.prisma` — Phase 1スキーマ（company/lead/outreach/decision log/cost ledger）
+- `src/app/leads/` — Lead Management画面と承認フローのServer Actions
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 未実装（Phase 2以降）
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+商談・議事録・提案書・見積書・契約、SEO制作パイプライン、レポート、アップセル、認証/RBAC、外部API連携（GA4/GSC/CMS/Gmail）。設計書（Artifact）のセクションHのロードマップを参照。

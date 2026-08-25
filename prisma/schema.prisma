@@ -1,0 +1,171 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Phase 1 scope: company -> lead -> outreach. Later phases extend this chain
+// with customer/project/content tables without touching what's here.
+// ---------------------------------------------------------------------------
+
+enum LeadStatus {
+  NEW
+  RESEARCHED
+  QUALIFIED
+  CONTACTED
+  REPLIED
+  INTERESTED
+  MEETING
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum OutreachDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum ReplyCategory {
+  INTERESTED
+  NOT_INTERESTED
+  NEEDS_INFO
+  UNSUBSCRIBE
+  OUT_OF_OFFICE
+  UNCLASSIFIED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum UserRole {
+  ADMIN
+  SALES
+  OPERATOR
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      UserRole @default(SALES)
+  createdAt DateTime @default(now())
+
+  approvedMessages OutreachMessage[] @relation("ApprovedBy")
+}
+
+model Company {
+  id            String   @id @default(cuid())
+  name          String
+  website       String
+  industry      String?
+  location      String?
+  employeeRange String?
+  createdAt     DateTime @default(now())
+
+  lead Lead?
+}
+
+model Lead {
+  id          String     @id @default(cuid())
+  companyId   String     @unique
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  status      LeadStatus @default(NEW)
+  seoScore        Int?     // 0-100, from Agent 01
+  potentialScore  Int?     // 0-100, from Agent 01
+  seoOpportunities Json?   // structured findings from Agent 01
+  reasonToContact String?  @db.Text
+
+  lastContactedAt DateTime?
+  nextActionAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  outreachMessages OutreachMessage[]
+  decisionLogs     AiDecisionLog[]
+
+  @@index([status])
+  @@index([potentialScore])
+}
+
+model OutreachMessage {
+  id        String            @id @default(cuid())
+  leadId    String
+  lead      Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  direction OutreachDirection
+  subject   String?
+  body      String            @db.Text
+
+  // outbound-only fields
+  approvalStatus ApprovalStatus? // null for inbound messages
+  approvedById   String?
+  approvedBy     User?           @relation("ApprovedBy", fields: [approvedById], references: [id])
+  sentAt         DateTime?
+
+  // inbound-only fields
+  replyCategory ReplyCategory?
+
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+}
+
+// ---------------------------------------------------------------------------
+// Cross-cutting: every agent decision and every dollar spent is recorded here
+// regardless of which phase produced it.
+// ---------------------------------------------------------------------------
+
+model AiDecisionLog {
+  id           String   @id @default(cuid())
+  agentName    String   // e.g. "lead_research_agent", "sales_agent"
+  targetType   String   // e.g. "lead", "content_item"
+  targetId     String
+
+  leadId       String?
+  lead         Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  inputJson    Json
+  decision     String   @db.Text
+  reason       String   @db.Text
+  outputJson   Json
+
+  model        String   // e.g. "claude-sonnet-5"
+  tokensUsed   Int
+  costUsd      Decimal  @db.Decimal(10, 4)
+
+  humanApprovedById String?
+  finalResult       String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([agentName])
+  @@index([targetType, targetId])
+}
+
+model CostLedgerEntry {
+  id              String   @id @default(cuid())
+  customerLabel   String   // Phase 1: free-text until Customer table exists
+  period          String   // "2026-08"
+  aiCostUsd       Decimal  @db.Decimal(10, 2)
+  externalApiCostUsd Decimal @db.Decimal(10, 2)
+  laborCostUsd    Decimal  @db.Decimal(10, 2)
+  revenueUsd      Decimal  @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+
+  @@unique([customerLabel, period])
+}

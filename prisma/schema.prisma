@@ -74,19 +74,20 @@ model Company {
   employeeRange String?
   createdAt     DateTime @default(now())
 
-  lead Lead?
+  lead     Lead?
+  customer Customer?
 }
 
 model Lead {
-  id          String     @id @default(cuid())
-  companyId   String     @unique
-  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  status      LeadStatus @default(NEW)
-  seoScore        Int?     // 0-100, from Agent 01
-  potentialScore  Int?     // 0-100, from Agent 01
-  seoOpportunities Json?   // structured findings from Agent 01
-  reasonToContact String?  @db.Text
+  status           LeadStatus @default(NEW)
+  seoScore         Int? // 0-100, from Agent 01
+  potentialScore   Int? // 0-100, from Agent 01
+  seoOpportunities Json? // structured findings from Agent 01
+  reasonToContact  String?    @db.Text
 
   lastContactedAt DateTime?
   nextActionAt    DateTime?
@@ -96,15 +97,18 @@ model Lead {
 
   outreachMessages OutreachMessage[]
   decisionLogs     AiDecisionLog[]
+  meetings         Meeting[]
+  proposals        Proposal[]
+  contract         Contract?
 
   @@index([status])
   @@index([potentialScore])
 }
 
 model OutreachMessage {
-  id        String            @id @default(cuid())
-  leadId    String
-  lead      Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   direction OutreachDirection
   subject   String?
@@ -130,22 +134,22 @@ model OutreachMessage {
 // ---------------------------------------------------------------------------
 
 model AiDecisionLog {
-  id           String   @id @default(cuid())
-  agentName    String   // e.g. "lead_research_agent", "sales_agent"
-  targetType   String   // e.g. "lead", "content_item"
-  targetId     String
+  id         String @id @default(cuid())
+  agentName  String // e.g. "lead_research_agent", "sales_agent"
+  targetType String // e.g. "lead", "content_item"
+  targetId   String
 
-  leadId       String?
-  lead         Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
 
-  inputJson    Json
-  decision     String   @db.Text
-  reason       String   @db.Text
-  outputJson   Json
+  inputJson  Json
+  decision   String @db.Text
+  reason     String @db.Text
+  outputJson Json
 
-  model        String   // e.g. "claude-sonnet-5"
-  tokensUsed   Int
-  costUsd      Decimal  @db.Decimal(10, 4)
+  model      String // e.g. "claude-sonnet-5"
+  tokensUsed Int
+  costUsd    Decimal @db.Decimal(10, 4)
 
   humanApprovedById String?
   finalResult       String? @db.Text
@@ -156,14 +160,92 @@ model AiDecisionLog {
   @@index([targetType, targetId])
 }
 
+// ---------------------------------------------------------------------------
+// Phase 2 scope: meeting -> proposal -> contract. A lead becomes a Customer
+// only once a Contract is signed; everything before that stays on Lead.
+// ---------------------------------------------------------------------------
+
+enum MeetingStatus {
+  BRIEFED // Agent 03 produced a pre-meeting briefing, meeting not held yet
+  HELD // transcript recorded, minutes summarized
+}
+
+enum ProposalStatus {
+  PENDING // Agent 04 draft, awaiting human approval
+  APPROVED
+  REJECTED
+}
+
+model Meeting {
+  id     String        @id @default(cuid())
+  leadId String
+  lead   Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  status MeetingStatus @default(BRIEFED)
+
+  briefing       Json? // Agent 03 output: company/competitor/SEO/needs summary
+  transcript     String? @db.Text // raw notes from the actual meeting
+  minutesSummary String? @db.Text // Agent 04 summarization of the transcript
+
+  heldAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  proposals Proposal[]
+
+  @@index([leadId])
+}
+
+model Proposal {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  meetingId String?
+  meeting   Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+
+  scopeJson    Json // proposed services, deliverables
+  amountUsd    Decimal        @db.Decimal(10, 2)
+  status       ProposalStatus @default(PENDING)
+  approvedById String?
+
+  createdAt DateTime  @default(now())
+  contract  Contract?
+
+  @@index([leadId])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  companyId String   @unique
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  contracts Contract[]
+}
+
+model Contract {
+  id         String    @id @default(cuid())
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  leadId     String    @unique
+  lead       Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  proposalId String?   @unique
+  proposal   Proposal? @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+
+  plan          String // e.g. "SEO運用代行 基本プラン"
+  monthlyFeeUsd Decimal  @db.Decimal(10, 2)
+  startDate     DateTime
+  renewalDate   DateTime
+
+  createdAt DateTime @default(now())
+}
+
 model CostLedgerEntry {
-  id              String   @id @default(cuid())
-  customerLabel   String   // Phase 1: free-text until Customer table exists
-  period          String   // "2026-08"
-  aiCostUsd       Decimal  @db.Decimal(10, 2)
+  id                 String  @id @default(cuid())
+  customerLabel      String // Phase 1: free-text until Customer table exists
+  period             String // "2026-08"
+  aiCostUsd          Decimal @db.Decimal(10, 2)
   externalApiCostUsd Decimal @db.Decimal(10, 2)
-  laborCostUsd    Decimal  @db.Decimal(10, 2)
-  revenueUsd      Decimal  @db.Decimal(10, 2)
+  laborCostUsd       Decimal @db.Decimal(10, 2)
+  revenueUsd         Decimal @db.Decimal(10, 2)
 
   createdAt DateTime @default(now())
 

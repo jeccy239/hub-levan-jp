@@ -10,6 +10,13 @@ import {
   recordAndClassifyReply,
   rejectMessage,
 } from "@/agents/salesAgent";
+import { generateMeetingBriefing } from "@/agents/salesResearchAgent";
+import {
+  approveProposal,
+  recordMeetingAndDraftProposal,
+  rejectProposal,
+  signContract,
+} from "@/agents/proposalAgent";
 
 // Phase 1 has no auth yet — every approval is attributed to a fixed seed
 // operator account. Real user sessions arrive with RBAC in a later phase.
@@ -68,5 +75,43 @@ export async function submitReply(formData: FormData) {
   if (!leadId || !body) return;
 
   await recordAndClassifyReply(leadId, body);
+  revalidatePath(`/leads/${leadId}`);
+}
+
+export async function generateBriefing(leadId: string) {
+  await generateMeetingBriefing(leadId);
+  revalidatePath(`/leads/${leadId}`);
+}
+
+export async function submitMeetingTranscript(formData: FormData) {
+  const meetingId = String(formData.get("meetingId") ?? "");
+  const leadId = String(formData.get("leadId") ?? "");
+  const transcript = String(formData.get("transcript") ?? "").trim();
+  if (!meetingId || !transcript) return;
+
+  await recordMeetingAndDraftProposal(meetingId, transcript);
+  revalidatePath(`/leads/${leadId}`);
+}
+
+export async function approveProposalAction(proposalId: string, leadId: string) {
+  const operatorId = await getOperatorId();
+  await approveProposal(proposalId, operatorId);
+  revalidatePath(`/leads/${leadId}`);
+}
+
+export async function rejectProposalAction(proposalId: string, leadId: string) {
+  const operatorId = await getOperatorId();
+  await rejectProposal(proposalId, operatorId);
+  revalidatePath(`/leads/${leadId}`);
+}
+
+export async function signContractAction(formData: FormData) {
+  const proposalId = String(formData.get("proposalId") ?? "");
+  const leadId = String(formData.get("leadId") ?? "");
+  const plan = String(formData.get("plan") ?? "").trim();
+  const monthlyFeeUsd = Number(formData.get("monthlyFeeUsd") ?? 0);
+  if (!proposalId || !plan || !monthlyFeeUsd) return;
+
+  await signContract({ proposalId, plan, monthlyFeeUsd });
   revalidatePath(`/leads/${leadId}`);
 }

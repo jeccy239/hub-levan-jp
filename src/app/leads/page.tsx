@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createLead } from "./actions";
+import { LEAD_STATUS_LABEL } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,9 @@ const STATUS_STYLE: Record<string, string> = {
   LOST: "bg-[var(--danger-tint)] text-[var(--danger)]",
 };
 
+const inputClass =
+  "border border-[var(--line)] rounded-xl px-3.5 py-2.5 bg-[var(--surface)] text-[var(--text)] placeholder:text-[var(--text-dim)]";
+
 export default async function LeadsPage() {
   const leads = await prisma.lead.findMany({
     include: { company: true },
@@ -27,7 +31,9 @@ export default async function LeadsPage() {
   return (
     <div className="max-w-6xl mx-auto px-6 py-10 space-y-10">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--accent-strong)]">Lead Management</h1>
+        <h1 className="text-[28px] font-semibold tracking-tight text-[var(--text)]">
+          リード管理
+        </h1>
         <p className="text-[var(--text-dim)] mt-1">
           企業リード登録 → Agent 01 が自動でSEO分析・見込みスコアリングを実行します。
         </p>
@@ -35,42 +41,24 @@ export default async function LeadsPage() {
 
       <form
         action={createLead}
-        className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-[var(--surface)] border border-[var(--line)] rounded-lg p-5"
+        className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-5 shadow-sm"
       >
-        <input
-          name="name"
-          placeholder="会社名"
-          required
-          className="border border-[var(--line)] rounded-md px-3 py-2 bg-transparent"
-        />
-        <input
-          name="website"
-          placeholder="https://example.com"
-          required
-          className="border border-[var(--line)] rounded-md px-3 py-2 bg-transparent"
-        />
-        <input
-          name="industry"
-          placeholder="業種"
-          className="border border-[var(--line)] rounded-md px-3 py-2 bg-transparent"
-        />
-        <input
-          name="location"
-          placeholder="所在地"
-          className="border border-[var(--line)] rounded-md px-3 py-2 bg-transparent"
-        />
+        <input name="name" placeholder="会社名" required className={inputClass} />
+        <input name="website" placeholder="https://example.com" required className={inputClass} />
+        <input name="industry" placeholder="業種" className={inputClass} />
+        <input name="location" placeholder="所在地" className={inputClass} />
         <button
           type="submit"
-          className="sm:col-span-4 justify-self-start bg-[var(--accent)] text-white rounded-md px-4 py-2 text-sm font-medium"
+          className="sm:col-span-4 justify-self-start bg-[var(--accent)] hover:bg-[var(--accent-strong)] text-white rounded-xl px-5 py-2.5 text-sm font-medium shadow-sm"
         >
           リード登録してAgent 01を実行
         </button>
       </form>
 
-      <div className="overflow-x-auto border border-[var(--line)] rounded-lg">
+      <div className="overflow-x-auto border border-[var(--line)] rounded-2xl bg-[var(--surface)] shadow-sm">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs uppercase tracking-wide text-[var(--text-dim)] border-b border-[var(--line)]">
+            <tr className="text-left text-xs font-medium tracking-wide text-[var(--text-dim)] border-b border-[var(--line)]">
               <th className="px-4 py-3">会社名</th>
               <th className="px-4 py-3">業種</th>
               <th className="px-4 py-3">SEOスコア</th>
@@ -81,23 +69,28 @@ export default async function LeadsPage() {
           </thead>
           <tbody>
             {leads.map((lead) => (
-              <tr key={lead.id} className="border-b border-[var(--line)] last:border-0">
+              <tr
+                key={lead.id}
+                className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--surface-2)] transition-colors"
+              >
                 <td className="px-4 py-3">
-                  <Link href={`/leads/${lead.id}`} className="font-medium hover:text-[var(--accent)]">
+                  <Link href={`/leads/${lead.id}`} className="font-medium text-[var(--text)] hover:text-[var(--accent)]">
                     {lead.company.name}
                   </Link>
                   <div className="text-xs text-[var(--text-dim)]">{lead.company.website}</div>
                 </td>
                 <td className="px-4 py-3 text-[var(--text-dim)]">{lead.company.industry ?? "—"}</td>
-                <td className="px-4 py-3 tabular-nums">{lead.seoScore ?? "—"}</td>
-                <td className="px-4 py-3 tabular-nums font-medium">{lead.potentialScore ?? "—"}</td>
+                <td className="px-4 py-3 tabular-nums text-[var(--text)]">{lead.seoScore ?? "—"}</td>
+                <td className="px-4 py-3 tabular-nums font-medium text-[var(--text)]">
+                  {lead.potentialScore ?? "—"}
+                </td>
                 <td className="px-4 py-3">
                   <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                       STATUS_STYLE[lead.status] ?? ""
                     }`}
                   >
-                    {lead.status}
+                    {LEAD_STATUS_LABEL[lead.status] ?? lead.status}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-[var(--text-dim)]">

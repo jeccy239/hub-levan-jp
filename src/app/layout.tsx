@@ -1,13 +1,6 @@
 import type { Metadata } from "next";
-import { Noto_Sans_JP } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
-
-const notoSansJp = Noto_Sans_JP({
-  variable: "--font-body",
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-});
 
 export const metadata: Metadata = {
   title: "LEVAN AI Business OS",
@@ -16,19 +9,19 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ja" className={`${notoSansJp.variable} h-full antialiased`}>
+    <html lang="ja" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-[var(--bg)] text-[var(--text)]">
-        <header className="border-b border-[var(--line)]">
+        <header className="border-b border-[var(--line)] bg-[var(--surface)]/80 backdrop-blur-md sticky top-0 z-10">
           <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-8">
-            <Link href="/" className="font-bold tracking-tight text-[var(--accent-strong)]">
-              LEVAN <span className="text-[var(--text-dim)] font-normal">Business OS</span>
+            <Link href="/" className="font-semibold tracking-tight text-[var(--text)]">
+              LEVAN <span className="text-[var(--text-dim)] font-normal">ビジネスOS</span>
             </Link>
-            <nav className="flex gap-6 text-sm">
-              <Link href="/" className="hover:text-[var(--accent)]">
-                Dashboard
+            <nav className="flex gap-6 text-sm font-medium">
+              <Link href="/" className="text-[var(--text-dim)] hover:text-[var(--text)]">
+                ダッシュボード
               </Link>
-              <Link href="/leads" className="hover:text-[var(--accent)]">
-                Leads
+              <Link href="/leads" className="text-[var(--text-dim)] hover:text-[var(--text)]">
+                リード管理
               </Link>
             </nav>
           </div>

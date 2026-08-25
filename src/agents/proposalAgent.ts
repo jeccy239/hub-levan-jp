@@ -8,7 +8,7 @@ const AGENT_NAME = "proposal_agent";
 type ProposalDraft = {
   minutesSummary: string;
   scope: string[];
-  amountUsd: number;
+  amountJpy: number;
   rationale: string;
 };
 
@@ -18,11 +18,11 @@ function parseProposalDraft(text: string): ProposalDraft {
     return {
       minutesSummary: String(parsed.minutesSummary ?? ""),
       scope: Array.isArray(parsed.scope) ? parsed.scope : [],
-      amountUsd: Number(parsed.amountUsd) || 1000,
+      amountJpy: Number(parsed.amountJpy) || 100000,
       rationale: String(parsed.rationale ?? ""),
     };
   } catch {
-    return { minutesSummary: "解析失敗", scope: [], amountUsd: 1000, rationale: "" };
+    return { minutesSummary: "解析失敗", scope: [], amountJpy: 100000, rationale: "" };
   }
 }
 
@@ -39,16 +39,16 @@ export async function recordMeetingAndDraftProposal(meetingId: string, transcrip
   });
 
   const system =
-    "あなたはLEVANのProposal Agentです。商談の書き起こしから議事録を要約し、提案内容と見積金額(月額USD)の下書きを作成してください。" +
+    "あなたはLEVANのProposal Agentです。商談の書き起こしから議事録を要約し、提案内容と見積金額(月額・日本円)の下書きを作成してください。" +
     '必ず次のJSON形式のみで応答してください: {"minutesSummary": "...", "scope": ["...", "..."], ' +
-    '"amountUsd": 1000, "rationale": "..."}';
+    '"amountJpy": 100000, "rationale": "..."}';
 
   const prompt = `会社名: ${meeting.lead.company.name}\n商談書き起こし:\n${transcript}`;
 
   const stubResponse = JSON.stringify({
     minutesSummary: "月10本のSEOコンテンツ制作と月次レポートに関心。予算感は月10〜15万円程度。3ヶ月での効果確認を希望。",
     scope: ["キーワード選定", "SEO構成", "AI記事制作(月10本)", "月次レポート", "改善提案"],
-    amountUsd: 1000,
+    amountJpy: 100000,
     rationale: "基本プラン相当。予算感・希望内容と一致するため標準プランを提示。",
   });
 
@@ -70,7 +70,7 @@ export async function recordMeetingAndDraftProposal(meetingId: string, transcrip
         leadId: meeting.leadId,
         meetingId,
         scopeJson: draft.scope,
-        amountUsd: draft.amountUsd,
+        amountJpy: draft.amountJpy,
         status: ProposalStatus.PENDING,
       },
     }),
@@ -83,7 +83,7 @@ export async function recordMeetingAndDraftProposal(meetingId: string, transcrip
     targetId: proposal.id,
     leadId: meeting.leadId,
     input: { transcript },
-    decision: `見積 $${draft.amountUsd}/月 の提案を生成し、人間承認待ちとした`,
+    decision: `見積 月額¥${draft.amountJpy.toLocaleString("ja-JP")} の提案を生成し、人間承認待ちとした`,
     reason: draft.rationale,
     output: draft,
     llm,
@@ -119,7 +119,7 @@ export async function rejectProposal(proposalId: string, approvedById: string) {
 export async function signContract(params: {
   proposalId: string;
   plan: string;
-  monthlyFeeUsd: number;
+  monthlyFeeJpy: number;
 }) {
   const proposal = await prisma.proposal.findUniqueOrThrow({
     where: { id: params.proposalId },
@@ -142,7 +142,7 @@ export async function signContract(params: {
       leadId: proposal.leadId,
       proposalId: proposal.id,
       plan: params.plan,
-      monthlyFeeUsd: params.monthlyFeeUsd,
+      monthlyFeeJpy: params.monthlyFeeJpy,
       startDate,
       renewalDate,
     },

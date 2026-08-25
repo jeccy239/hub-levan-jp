@@ -109,9 +109,9 @@ export async function signContractAction(formData: FormData) {
   const proposalId = String(formData.get("proposalId") ?? "");
   const leadId = String(formData.get("leadId") ?? "");
   const plan = String(formData.get("plan") ?? "").trim();
-  const monthlyFeeUsd = Number(formData.get("monthlyFeeUsd") ?? 0);
-  if (!proposalId || !plan || !monthlyFeeUsd) return;
+  const monthlyFeeJpy = Number(formData.get("monthlyFeeJpy") ?? 0);
+  if (!proposalId || !plan || !monthlyFeeJpy) return;
 
-  await signContract({ proposalId, plan, monthlyFeeUsd });
+  await signContract({ proposalId, plan, monthlyFeeJpy });
   revalidatePath(`/leads/${leadId}`);
 }

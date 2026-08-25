@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { callLlm } from "./llm";
 import { logDecision } from "./decisionLog";
 import { ApprovalStatus, LeadStatus, OutreachDirection, ReplyCategory } from "@/generated/prisma/client";
+import { LEAD_STATUS_LABEL, REPLY_CATEGORY_LABEL } from "@/lib/labels";
 
 const AGENT_NAME = "sales_agent";
 
@@ -158,7 +159,7 @@ export async function recordAndClassifyReply(leadId: string, body: string) {
     targetId: message.id,
     leadId,
     input: { body },
-    decision: `返信を${classification.category}に分類し、リード状態を${classification.nextStatus}に更新`,
+    decision: `返信を「${REPLY_CATEGORY_LABEL[classification.category] ?? classification.category}」に分類し、リード状態を「${LEAD_STATUS_LABEL[classification.nextStatus] ?? classification.nextStatus}」に更新`,
     reason: classification.summary,
     output: classification,
     llm,

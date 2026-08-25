@@ -1,39 +1,84 @@
 @import "tailwindcss";
 
+/*
+ * Fixed light palette — Apple-style: near-white ground, near-black text,
+ * a single blue accent. Deliberately not theme-aware (dark mode) per
+ * explicit product direction.
+ */
 :root {
-  --bg: #f6f4ee;
+  --bg: #f5f5f7;
   --surface: #ffffff;
-  --surface-2: #eeebe1;
-  --line: #dcd7c8;
-  --text: #1e2420;
-  --text-dim: #585f56;
-  --accent: #2f5d52;
-  --accent-strong: #1d3f37;
-  --accent-tint: #dce8e1;
-  --gold: #9c7a2b;
-  --gold-tint: #f1e6c8;
-  --danger: #8c3b2e;
-  --danger-tint: #f3e0da;
+  --surface-2: #f0f0f2;
+  --line: #d8d8dc;
+  --text: #1d1d1f;
+  --text-dim: #6e6e73;
+  --accent: #0071e3;
+  --accent-strong: #0058b0;
+  --accent-tint: #e8f1fd;
+  --gold: #a9700b;
+  --gold-tint: #fbf0dc;
+  --danger: #d5372e;
+  --danger-tint: #fbe6e4;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #141815;
-    --surface: #1b211d;
-    --surface-2: #222922;
-    --line: #333b33;
-    --text: #e7e9e2;
-    --text-dim: #9ba396;
-    --accent: #7fbba6;
-    --accent-strong: #a9d6c4;
-    --accent-tint: #233029;
-    --gold: #d8b863;
-    --gold-tint: #2c2717;
-    --danger: #d98d7c;
-    --danger-tint: #332420;
-  }
+* {
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  font-family: var(--font-body), "Hiragino Kaku Gothic ProN", sans-serif;
+  font-family:
+    var(--font-body),
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro JP",
+    "Hiragino Sans",
+    "Hiragino Kaku Gothic ProN",
+    "Yu Gothic",
+    sans-serif;
+}
+
+/* Tactile press feedback for anything clickable */
+button,
+a {
+  transition:
+    transform 0.12s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.12s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+input,
+textarea {
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  a,
+  input,
+  textarea {
+    transition: none !important;
+  }
+  button:active {
+    transform: none;
+  }
 }

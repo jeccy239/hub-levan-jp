@@ -87,8 +87,8 @@ export async function runLeadResearchAgent(leadId: string) {
     leadId: lead.id,
     input: { company: lead.company },
     decision: qualifies
-      ? `見込み度${result.potentialScore}点で営業対象に選定（QUALIFIED）`
-      : `見込み度${result.potentialScore}点は基準未満のため保留（RESEARCHED）`,
+      ? `見込み度${result.potentialScore}点で営業対象に選定（営業対象）`
+      : `見込み度${result.potentialScore}点は基準未満のため保留（調査済み）`,
     reason: result.reasonToContact,
     output: result,
     llm,

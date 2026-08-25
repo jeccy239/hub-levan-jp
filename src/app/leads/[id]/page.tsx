@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import {
   approveMessage,
@@ -52,7 +53,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       decisionLogs: { orderBy: { createdAt: "desc" } },
       meetings: { orderBy: { createdAt: "asc" }, include: { proposals: true } },
       proposals: { orderBy: { createdAt: "asc" } },
-      contract: true,
+      contract: { include: { customer: { include: { project: true } } } },
     },
   });
 
@@ -341,6 +342,14 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             <div className="text-[var(--text)]">
               更新日: {lead.contract.renewalDate.toLocaleDateString("ja-JP")}
             </div>
+            {lead.contract.customer.project && (
+              <Link
+                href={`/projects/${lead.contract.customer.project.id}`}
+                className="inline-block mt-2 text-[var(--accent)] font-medium hover:underline"
+              >
+                SEO制作案件を見る →
+              </Link>
+            )}
           </div>
         )}
       </section>

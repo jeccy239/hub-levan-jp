@@ -219,6 +219,7 @@ model Customer {
   createdAt DateTime @default(now())
 
   contracts Contract[]
+  project   Project?
 }
 
 model Contract {
@@ -236,6 +237,61 @@ model Contract {
   renewalDate   DateTime
 
   createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3 scope: SEO production pipeline. One Project per signed contract;
+// each Project owns a set of ContentItems moving through a fixed pipeline.
+// ---------------------------------------------------------------------------
+
+enum ContentStatus {
+  KEYWORD // Agent 06 assigned a keyword + priority, no draft yet
+  DRAFTED // Agent 07 wrote title/outline/body
+  QC_REVIEWED // Agent 08 checked it; may or may not need a human
+  HUMAN_REVIEW // QC flagged it (low score or YMYL) — human must review
+  APPROVED // human signed off, ready to publish
+  PUBLISHED
+}
+
+model Project {
+  id         String   @id @default(cuid())
+  customerId String   @unique
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  contentItems ContentItem[]
+}
+
+model ContentItem {
+  id        String        @id @default(cuid())
+  projectId String
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status    ContentStatus @default(KEYWORD)
+
+  keyword      String
+  searchIntent String?
+  priority     Int? // 1 = highest, from Agent 06
+
+  title                  String?
+  outlineJson            Json? // heading structure from Agent 07
+  draftBody              String? @db.Text
+  metaTitle              String?
+  metaDescription        String?
+  internalLinkCandidates Json?
+  cta                    String?
+
+  qcScore  Int? // 0-100, from Agent 08
+  qcIssues Json?
+  ymylFlag Boolean @default(false)
+
+  publishedUrl String?
+  publishedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([status])
 }
 
 model CostLedgerEntry {

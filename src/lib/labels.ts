@@ -32,6 +32,18 @@ export const AGENT_NAME_LABEL: Record<string, string> = {
   sales_agent: "Agent 02・営業",
   sales_research_agent: "Agent 03・商談準備",
   proposal_agent: "Agent 04・提案書",
+  seo_strategy_agent: "Agent 06・SEO戦略",
+  content_agent: "Agent 07・記事制作",
+  quality_control_agent: "Agent 08・品質チェック",
+};
+
+export const CONTENT_STATUS_LABEL: Record<string, string> = {
+  KEYWORD: "キーワード計画",
+  DRAFTED: "ドラフト作成済み",
+  QC_REVIEWED: "品質チェック済み",
+  HUMAN_REVIEW: "要人間レビュー",
+  APPROVED: "承認済み・公開待ち",
+  PUBLISHED: "公開済み",
 };
 
 export function formatYen(amount: number | string): string {

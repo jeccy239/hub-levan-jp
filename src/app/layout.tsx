@@ -23,6 +23,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/leads" className="text-[var(--text-dim)] hover:text-[var(--text)]">
                 リード管理
               </Link>
+              <Link href="/projects" className="text-[var(--text-dim)] hover:text-[var(--text)]">
+                案件管理
+              </Link>
             </nav>
           </div>
         </header>

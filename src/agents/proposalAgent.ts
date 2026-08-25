@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { callLlm } from "./llm";
 import { logDecision } from "./decisionLog";
 import { LeadStatus, MeetingStatus, ProposalStatus } from "@/generated/prisma/client";
+import { createProjectForCustomer } from "./projectManagerAgent";
 
 const AGENT_NAME = "proposal_agent";
 
@@ -149,6 +150,7 @@ export async function signContract(params: {
   });
 
   await prisma.lead.update({ where: { id: proposal.leadId }, data: { status: LeadStatus.WON } });
+  await createProjectForCustomer(customer.id);
 
   return contract;
 }

@@ -218,8 +218,9 @@ model Customer {
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
-  contracts Contract[]
-  project   Project?
+  contracts       Contract[]
+  project         Project?
+  upsellProposals UpsellProposal[]
 }
 
 model Contract {
@@ -260,6 +261,7 @@ model Project {
   createdAt  DateTime @default(now())
 
   contentItems ContentItem[]
+  reports      Report[]
 }
 
 model ContentItem {
@@ -292,6 +294,54 @@ model ContentItem {
 
   @@index([projectId])
   @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4 scope: monthly reporting and upsell. Both agents only ever
+// produce a draft — sending a report or presenting an upsell to the
+// customer is always an explicit human action.
+// ---------------------------------------------------------------------------
+
+enum SendStatus {
+  DRAFT
+  APPROVED
+  SENT
+}
+
+model Report {
+  id        String     @id @default(cuid())
+  projectId String
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  period    String // "2026-08"
+  status    SendStatus @default(DRAFT)
+
+  metricsJson Json // pv, users, queries, ranking, ctr, cv, cvr, publishedCount
+  summaryText String @db.Text // Agent 09: what happened / why / what's next
+
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@unique([projectId, period])
+}
+
+enum UpsellStatus {
+  PENDING // Agent 10 draft, awaiting human approval
+  APPROVED // human approved, ready to present to the customer
+  PRESENTED // human has shown it to the customer
+  REJECTED
+}
+
+model UpsellProposal {
+  id         String       @id @default(cuid())
+  customerId String
+  customer   Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status     UpsellStatus @default(PENDING)
+
+  category  String // e.g. "Web制作", "AIチャットボット", "広告運用"
+  rationale String @db.Text // why this benefits the customer specifically
+
+  approvedById String?
+  createdAt    DateTime @default(now())
 }
 
 model CostLedgerEntry {

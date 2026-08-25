@@ -35,6 +35,21 @@ export const AGENT_NAME_LABEL: Record<string, string> = {
   seo_strategy_agent: "Agent 06・SEO戦略",
   content_agent: "Agent 07・記事制作",
   quality_control_agent: "Agent 08・品質チェック",
+  report_agent: "Agent 09・レポート",
+  upsell_agent: "Agent 10・アップセル",
+};
+
+export const SEND_STATUS_LABEL: Record<string, string> = {
+  DRAFT: "下書き",
+  APPROVED: "承認済み",
+  SENT: "送信済み",
+};
+
+export const UPSELL_STATUS_LABEL: Record<string, string> = {
+  PENDING: "承認待ち",
+  APPROVED: "承認済み・提案可",
+  PRESENTED: "提案済み",
+  REJECTED: "却下",
 };
 
 export const CONTENT_STATUS_LABEL: Record<string, string> = {

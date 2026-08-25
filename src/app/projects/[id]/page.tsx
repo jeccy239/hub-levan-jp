@@ -2,13 +2,19 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import {
   approveContent,
+  approveUpsellAction,
   generateDraft,
   generateKeywords,
+  generateReport,
+  generateUpsell,
+  presentUpsellAction,
   publishContent,
+  rejectUpsellAction,
   runQc,
   sendBackToDraft,
+  sendReport,
 } from "../actions";
-import { CONTENT_STATUS_LABEL } from "@/lib/labels";
+import { CONTENT_STATUS_LABEL, SEND_STATUS_LABEL, UPSELL_STATUS_LABEL } from "@/lib/labels";
 
 const primaryButton =
   "text-sm bg-[var(--accent)] hover:bg-[var(--accent-strong)] text-white rounded-xl px-4 py-2 font-medium shadow-sm";
@@ -37,8 +43,9 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   const project = await prisma.project.findUnique({
     where: { id },
     include: {
-      customer: { include: { company: true } },
+      customer: { include: { company: true, upsellProposals: { orderBy: { createdAt: "desc" } } } },
       contentItems: { orderBy: [{ priority: "asc" }, { createdAt: "asc" }] },
+      reports: { orderBy: { period: "desc" } },
     },
   });
 
@@ -178,6 +185,163 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           </p>
         )}
       </div>
+
+      <section className="space-y-4 border-t border-[var(--line)] pt-8">
+        <h2 className="font-semibold text-[var(--text)]">月次レポート（Agent 09）</h2>
+
+        <form action={generateReport} className={`${card} grid grid-cols-2 sm:grid-cols-4 gap-3`}>
+          <input type="hidden" name="projectId" value={project.id} />
+          <input
+            name="period"
+            placeholder="対象月（例: 2026-08）"
+            required
+            className="col-span-2 border border-[var(--line)] rounded-xl px-3 py-2 text-sm bg-[var(--surface)]"
+          />
+          <input
+            name="pageViews"
+            type="number"
+            placeholder="PV数"
+            required
+            className="border border-[var(--line)] rounded-xl px-3 py-2 text-sm bg-[var(--surface)]"
+          />
+          <input
+            name="users"
+            type="number"
+            placeholder="ユーザー数"
+            required
+            className="border border-[var(--line)] rounded-xl px-3 py-2 text-sm bg-[var(--surface)]"
+          />
+          <input
+            name="avgRanking"
+            type="number"
+            placeholder="平均検索順位"
+            required
+            className="border border-[var(--line)] rounded-xl px-3 py-2 text-sm bg-[var(--surface)]"
+          />
+          <input
+            name="ctr"
+            type="number"
+            step="0.1"
+            placeholder="CTR（%）"
+            required
+            className="border border-[var(--line)] rounded-xl px-3 py-2 text-sm bg-[var(--surface)]"
+          />
+          <input
+            name="conversions"
+            type="number"
+            placeholder="コンバージョン数"
+            required
+            className="border border-[var(--line)] rounded-xl px-3 py-2 text-sm bg-[var(--surface)]"
+          />
+          <input
+            name="cvr"
+            type="number"
+            step="0.1"
+            placeholder="CVR（%）"
+            required
+            className="border border-[var(--line)] rounded-xl px-3 py-2 text-sm bg-[var(--surface)]"
+          />
+          <input
+            name="topQueries"
+            placeholder="主要検索クエリ（カンマ区切り）"
+            className="col-span-4 border border-[var(--line)] rounded-xl px-3 py-2 text-sm bg-[var(--surface)]"
+          />
+          <button type="submit" className={`col-span-4 ${primaryButton} justify-self-start`}>
+            レポートを生成
+          </button>
+        </form>
+
+        <div className="space-y-3">
+          {project.reports.map((report) => (
+            <div key={report.id} className={`${card} space-y-2`}>
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-[var(--text)]">{report.period} 月次レポート</span>
+                <span
+                  className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                    report.status === "SENT"
+                      ? "bg-[var(--accent)] text-white"
+                      : "bg-[var(--gold-tint)] text-[var(--gold)]"
+                  }`}
+                >
+                  {SEND_STATUS_LABEL[report.status] ?? report.status}
+                </span>
+              </div>
+              <p className="text-sm whitespace-pre-wrap text-[var(--text)]">{report.summaryText}</p>
+              {report.status === "DRAFT" && (
+                <form action={sendReport.bind(null, report.id, project.id)}>
+                  <button type="submit" className={linkButton("accent")}>
+                    承認して顧客に送信
+                  </button>
+                </form>
+              )}
+              {report.sentAt && (
+                <p className="text-xs text-[var(--text-dim)]">
+                  送信日: {report.sentAt.toLocaleDateString("ja-JP")}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-4 border-t border-[var(--line)] pt-8">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-[var(--text)]">アップセル提案（Agent 10）</h2>
+          <form action={generateUpsell.bind(null, project.customer.id, project.id)}>
+            <button type="submit" className={primaryButton}>
+              提案候補を抽出
+            </button>
+          </form>
+        </div>
+
+        <div className="space-y-3">
+          {project.customer.upsellProposals.map((u) => (
+            <div key={u.id} className={`${card} space-y-2`}>
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-[var(--text)]">{u.category}</span>
+                <span
+                  className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                    u.status === "PRESENTED"
+                      ? "bg-[var(--accent)] text-white"
+                      : u.status === "APPROVED"
+                        ? "bg-[var(--accent-tint)] text-[var(--accent-strong)]"
+                        : u.status === "REJECTED"
+                          ? "bg-[var(--danger-tint)] text-[var(--danger)]"
+                          : "bg-[var(--gold-tint)] text-[var(--gold)]"
+                  }`}
+                >
+                  {UPSELL_STATUS_LABEL[u.status] ?? u.status}
+                </span>
+              </div>
+              <p className="text-sm text-[var(--text)]">{u.rationale}</p>
+              {u.status === "PENDING" && (
+                <div className="flex gap-2">
+                  <form action={approveUpsellAction.bind(null, u.id, project.id)}>
+                    <button type="submit" className={linkButton("accent")}>
+                      承認
+                    </button>
+                  </form>
+                  <form action={rejectUpsellAction.bind(null, u.id, project.id)}>
+                    <button type="submit" className={linkButton("danger")}>
+                      却下
+                    </button>
+                  </form>
+                </div>
+              )}
+              {u.status === "APPROVED" && (
+                <form action={presentUpsellAction.bind(null, u.id, project.id)}>
+                  <button type="submit" className={linkButton("accent")}>
+                    顧客に提案済みにする
+                  </button>
+                </form>
+              )}
+            </div>
+          ))}
+          {project.customer.upsellProposals.length === 0 && (
+            <p className="text-sm text-[var(--text-dim)]">まだ提案候補がありません。</p>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

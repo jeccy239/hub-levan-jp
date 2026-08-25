@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
+// Always shows live counts — must never be statically prerendered at build
+// time (would either bake in stale numbers or fail the build if the DB is
+// unreachable from the build environment).
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const [totalLeads, qualified, pendingApprovals, decisions] = await Promise.all([
     prisma.lead.count(),

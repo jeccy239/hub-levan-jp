@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createLead } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 const STATUS_STYLE: Record<string, string> = {
   NEW: "bg-[var(--surface-2)] text-[var(--text-dim)]",
   RESEARCHED: "bg-[var(--surface-2)] text-[var(--text-dim)]",

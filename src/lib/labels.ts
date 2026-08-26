@@ -61,6 +61,12 @@ export const CONTENT_STATUS_LABEL: Record<string, string> = {
   PUBLISHED: "公開済み",
 };
 
+export const CONTACT_ROLE_LABEL: Record<string, string> = {
+  DECISION_MAKER: "決裁者",
+  OPERATIONAL: "実務担当者",
+  OTHER: "その他",
+};
+
 export function formatYen(amount: number | string): string {
   const n = typeof amount === "string" ? Number(amount) : amount;
   return `¥${n.toLocaleString("ja-JP")}`;

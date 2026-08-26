@@ -71,16 +71,87 @@ model User {
 }
 
 model Company {
-  id            String   @id @default(cuid())
+  id            String  @id @default(cuid())
   name          String
+  nameKana      String?
   website       String
   industry      String?
-  location      String?
+  location      String? // 簡易住所（都道府県・市区町村程度）。詳細住所は下記
   employeeRange String?
-  createdAt     DateTime @default(now())
+  revenueRange  String?
+
+  postalCode String?
+  address    String? // 番地以降の詳細住所
+  phone      String?
+  note       String? @db.Text
+
+  leadSourceId String?
+  leadSource   LeadSource? @relation(fields: [leadSourceId], references: [id], onDelete: SetNull)
+
+  statusId String?
+  status   CompanyStatus? @relation(fields: [statusId], references: [id], onDelete: SetNull)
+
+  firstContactAt DateTime?
+  lastContactAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   lead     Lead?
   customer Customer?
+  contacts Contact[]
+}
+
+// ---------------------------------------------------------------------------
+// Phase B scope: multi-contact companies, configurable status/source
+// masters, and a general contact record. These sit alongside the existing
+// Lead/Customer sales-pipeline models without replacing them — Company is
+// now the durable "this is a business we know" record, while Lead/Customer
+// remain the specific pipeline states a company can be in.
+// ---------------------------------------------------------------------------
+
+enum ContactRoleType {
+  DECISION_MAKER // 決裁者
+  OPERATIONAL // 実務担当者
+  OTHER
+}
+
+model Contact {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  name       String
+  nameKana   String?
+  department String?
+  title      String?
+  email      String?
+  phone      String?
+  mobile     String?
+  roleType   ContactRoleType @default(OTHER)
+  note       String?         @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+// Master data, editable from settings later — not a fixed enum, per the
+// requirement that statuses/sources must be addable without a code change.
+model CompanyStatus {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  order     Int       @default(0)
+  isDefault Boolean   @default(false)
+  companies Company[]
+}
+
+model LeadSource {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  order     Int       @default(0)
+  companies Company[]
 }
 
 model Lead {

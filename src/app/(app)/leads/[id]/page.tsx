@@ -74,6 +74,12 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             {lead.company.name}
           </h1>
           <p className="text-[var(--text-dim)]">{lead.company.website}</p>
+          <Link
+            href={`/companies/${lead.company.id}`}
+            className="text-xs text-[var(--accent)] hover:underline"
+          >
+            顧客詳細を見る →
+          </Link>
         </div>
         <span className="px-3 py-1 rounded-full text-xs font-medium bg-[var(--accent-tint)] text-[var(--accent-strong)]">
           {LEAD_STATUS_LABEL[lead.status] ?? lead.status}

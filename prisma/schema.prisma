@@ -68,6 +68,9 @@ model User {
 
   approvedMessages OutreachMessage[] @relation("ApprovedBy")
   auditLogs        AuditLog[]
+  activities       Activity[]
+  assignedTasks    Task[]
+  uploadedFiles    FileAsset[]
 }
 
 model Company {
@@ -97,9 +100,13 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  lead     Lead?
-  customer Customer?
-  contacts Contact[]
+  lead       Lead?
+  customer   Customer?
+  contacts   Contact[]
+  activities Activity[]
+  tasks      Task[]
+  tags       CompanyTag[]
+  files      FileAsset[]
 }
 
 // ---------------------------------------------------------------------------
@@ -133,6 +140,116 @@ model Contact {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  activities Activity[]
+
+  @@index([companyId])
+}
+
+// ---------------------------------------------------------------------------
+// Phase C scope: cross-channel activity log, tasks, tags, and file links.
+// All hang off Company, the durable hub record from Phase B.
+// ---------------------------------------------------------------------------
+
+enum ActivityType {
+  PHONE
+  EMAIL
+  ZOOM
+  VISIT
+  INQUIRY
+  PROPOSAL
+  QUOTE
+  CONTRACT
+  OTHER
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    ActivityType
+  content String       @db.Text
+  result  String?      @db.Text
+
+  occurredAt     DateTime  @default(now())
+  nextActionAt   DateTime?
+  nextActionNote String?
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([occurredAt])
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TaskStatus {
+  TODO
+  DOING
+  DONE
+}
+
+model Task {
+  id         String   @id @default(cuid())
+  companyId  String?
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assigneeId String?
+  assignee   User?    @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  title    String
+  dueDate  DateTime?
+  priority TaskPriority @default(MEDIUM)
+  status   TaskStatus   @default(TODO)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([assigneeId])
+}
+
+model Tag {
+  id   String @id @default(cuid())
+  name String @unique
+
+  companies CompanyTag[]
+}
+
+model CompanyTag {
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([companyId, tagId])
+}
+
+// Metadata-only for now — points at an external URL (Drive/Dropbox/etc).
+// Swappable for real object storage (e.g. Vercel Blob) later without
+// touching callers, since they only ever deal with "a file has a name and
+// a URL".
+model FileAsset {
+  id           String  @id @default(cuid())
+  companyId    String
+  company      Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  uploadedById String
+  uploadedBy   User    @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  fileName String
+  url      String
+  note     String?
+
+  createdAt DateTime @default(now())
 
   @@index([companyId])
 }

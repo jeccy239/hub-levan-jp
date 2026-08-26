@@ -84,3 +84,106 @@ export async function deleteContact(contactId: string, companyId: string) {
   await logAudit({ userId: user.id, action: "contact.delete", targetType: "contact", targetId: contactId });
   revalidatePath(`/companies/${companyId}`);
 }
+
+export async function recordActivity(formData: FormData) {
+  const user = await requireUser();
+  const companyId = String(formData.get("companyId") ?? "");
+  const content = String(formData.get("content") ?? "").trim();
+  if (!companyId || !content) return;
+
+  const nextActionAtRaw = String(formData.get("nextActionAt") ?? "").trim();
+
+  const activity = await prisma.activity.create({
+    data: {
+      companyId,
+      userId: user.id,
+      contactId: String(formData.get("contactId") ?? "").trim() || null,
+      type: (String(formData.get("type") ?? "OTHER") as never),
+      content,
+      result: String(formData.get("result") ?? "").trim() || null,
+      nextActionAt: nextActionAtRaw ? new Date(nextActionAtRaw) : null,
+      nextActionNote: String(formData.get("nextActionNote") ?? "").trim() || null,
+    },
+  });
+
+  await prisma.company.update({ where: { id: companyId }, data: { lastContactAt: new Date() } });
+  await logAudit({ userId: user.id, action: "activity.create", targetType: "activity", targetId: activity.id });
+  revalidatePath(`/companies/${companyId}`);
+}
+
+export async function createTask(formData: FormData) {
+  const user = await requireUser();
+  const companyId = String(formData.get("companyId") ?? "").trim() || null;
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return;
+
+  const dueDateRaw = String(formData.get("dueDate") ?? "").trim();
+
+  const task = await prisma.task.create({
+    data: {
+      companyId,
+      title,
+      assigneeId: String(formData.get("assigneeId") ?? "").trim() || user.id,
+      priority: (String(formData.get("priority") ?? "MEDIUM") as never),
+      dueDate: dueDateRaw ? new Date(dueDateRaw) : null,
+    },
+  });
+
+  await logAudit({ userId: user.id, action: "task.create", targetType: "task", targetId: task.id });
+  revalidatePath(companyId ? `/companies/${companyId}` : "/tasks");
+  revalidatePath("/tasks");
+}
+
+export async function updateTaskStatus(taskId: string, status: "TODO" | "DOING" | "DONE", companyId?: string) {
+  const user = await requireUser();
+  await prisma.task.update({ where: { id: taskId }, data: { status } });
+  await logAudit({ userId: user.id, action: "task.status_change", targetType: "task", targetId: taskId, detail: { status } });
+  if (companyId) revalidatePath(`/companies/${companyId}`);
+  revalidatePath("/tasks");
+}
+
+export async function addTag(formData: FormData) {
+  const user = await requireUser();
+  const companyId = String(formData.get("companyId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!companyId || !name) return;
+
+  const tag = await prisma.tag.upsert({ where: { name }, update: {}, create: { name } });
+  await prisma.companyTag.upsert({
+    where: { companyId_tagId: { companyId, tagId: tag.id } },
+    update: {},
+    create: { companyId, tagId: tag.id },
+  });
+
+  await logAudit({ userId: user.id, action: "tag.add", targetType: "company", targetId: companyId, detail: { tag: name } });
+  revalidatePath(`/companies/${companyId}`);
+}
+
+export async function removeTag(companyId: string, tagId: string) {
+  const user = await requireUser();
+  await prisma.companyTag.delete({ where: { companyId_tagId: { companyId, tagId } } });
+  await logAudit({ userId: user.id, action: "tag.remove", targetType: "company", targetId: companyId, detail: { tagId } });
+  revalidatePath(`/companies/${companyId}`);
+}
+
+export async function addFile(formData: FormData) {
+  const user = await requireUser();
+  const companyId = String(formData.get("companyId") ?? "");
+  const fileName = String(formData.get("fileName") ?? "").trim();
+  const url = String(formData.get("url") ?? "").trim();
+  if (!companyId || !fileName || !url) return;
+
+  const file = await prisma.fileAsset.create({
+    data: { companyId, fileName, url, uploadedById: user.id, note: String(formData.get("note") ?? "").trim() || null },
+  });
+
+  await logAudit({ userId: user.id, action: "file.add", targetType: "file_asset", targetId: file.id });
+  revalidatePath(`/companies/${companyId}`);
+}
+
+export async function deleteFile(fileId: string, companyId: string) {
+  const user = await requireUser();
+  await prisma.fileAsset.delete({ where: { id: fileId } });
+  await logAudit({ userId: user.id, action: "file.delete", targetType: "file_asset", targetId: fileId });
+  revalidatePath(`/companies/${companyId}`);
+}

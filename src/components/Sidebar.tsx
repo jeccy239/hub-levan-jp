@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: "/companies", label: "顧客管理" },
   { href: "/leads", label: "リード管理" },
   { href: "/projects", label: "案件管理" },
+  { href: "/tasks", label: "タスク" },
 ];
 
 export default function Sidebar({

@@ -1,8 +1,26 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { addContact, deleteContact, updateCompany } from "../actions";
-import { CONTACT_ROLE_LABEL, LEAD_STATUS_LABEL, formatYen } from "@/lib/labels";
+import {
+  addContact,
+  addFile,
+  addTag,
+  createTask,
+  deleteContact,
+  deleteFile,
+  recordActivity,
+  removeTag,
+  updateCompany,
+  updateTaskStatus,
+} from "../actions";
+import {
+  ACTIVITY_TYPE_LABEL,
+  CONTACT_ROLE_LABEL,
+  LEAD_STATUS_LABEL,
+  TASK_PRIORITY_LABEL,
+  TASK_STATUS_LABEL,
+  formatYen,
+} from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +49,10 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             project: true,
           },
         },
+        activities: { orderBy: { occurredAt: "desc" }, include: { user: true, contact: true } },
+        tasks: { orderBy: [{ status: "asc" }, { dueDate: "asc" }], include: { assignee: true } },
+        tags: { include: { tag: true } },
+        files: { orderBy: { createdAt: "desc" }, include: { uploadedBy: true } },
       },
     }),
     prisma.companyStatus.findMany({ orderBy: { order: "asc" } }),
@@ -51,6 +73,35 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             {company.status.name}
           </span>
         )}
+      </div>
+
+      {/* タグ */}
+      <div className="flex flex-wrap items-center gap-2 -mt-4">
+        {company.tags.map(({ tag }) => (
+          <span
+            key={tag.id}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-[var(--surface-2)] text-[var(--text-dim)]"
+          >
+            {tag.name}
+            <form action={removeTag.bind(null, company.id, tag.id)}>
+              <button type="submit" className="hover:text-[var(--danger)]" aria-label={`${tag.name}を削除`}>
+                ×
+              </button>
+            </form>
+          </span>
+        ))}
+        <details className="inline-block">
+          <summary className="text-xs text-[var(--accent)] cursor-pointer list-none hover:underline">
+            + タグを追加
+          </summary>
+          <form action={addTag} className="mt-2 flex gap-2">
+            <input type="hidden" name="companyId" value={company.id} />
+            <input name="name" placeholder="タグ名" required className={`${inputClass} text-xs py-1.5`} />
+            <button type="submit" className="text-xs bg-[var(--surface-2)] hover:bg-[var(--line)] rounded-lg px-3 py-1.5 text-[var(--text)]">
+              追加
+            </button>
+          </form>
+        </details>
       </div>
 
       {/* 関連情報：既存の営業パイプライン／案件へのリンク */}
@@ -212,6 +263,153 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             </button>
           </form>
         </details>
+      </section>
+
+      {/* 活動履歴 */}
+      <section className={`${card} space-y-4`}>
+        <h2 className="font-semibold text-[var(--text)]">活動履歴</h2>
+        <form action={recordActivity} className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <input type="hidden" name="companyId" value={company.id} />
+          <select name="type" defaultValue="OTHER" className={inputClass}>
+            {Object.entries(ACTIVITY_TYPE_LABEL).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <select name="contactId" defaultValue="" className={`sm:col-span-1 ${inputClass}`}>
+            <option value="">対応した担当者（任意）</option>
+            {company.contacts.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <input type="datetime-local" name="nextActionAt" className={inputClass} />
+          <input name="nextActionNote" placeholder="次回アクション" className={inputClass} />
+          <textarea
+            name="content"
+            placeholder="対応内容"
+            required
+            rows={2}
+            className={`sm:col-span-3 ${inputClass}`}
+          />
+          <input name="result" placeholder="結果" className={inputClass} />
+          <button type="submit" className={`sm:col-span-4 justify-self-start ${primaryButton}`}>
+            記録
+          </button>
+        </form>
+
+        <div className="space-y-3">
+          {company.activities.map((a) => (
+            <div key={a.id} className="border border-[var(--line)] rounded-xl p-4 text-sm">
+              <div className="flex items-center justify-between text-xs text-[var(--text-dim)] mb-1">
+                <span>
+                  {ACTIVITY_TYPE_LABEL[a.type]} ・ {a.user.name}
+                  {a.contact && ` ・ 対応: ${a.contact.name}`}
+                </span>
+                <span>{a.occurredAt.toLocaleString("ja-JP")}</span>
+              </div>
+              <p className="text-[var(--text)]">{a.content}</p>
+              {a.result && <p className="text-[var(--text-dim)] mt-1">結果: {a.result}</p>}
+              {a.nextActionNote && (
+                <p className="text-[var(--accent)] mt-1">
+                  次回: {a.nextActionNote}
+                  {a.nextActionAt && ` （${a.nextActionAt.toLocaleDateString("ja-JP")}）`}
+                </p>
+              )}
+            </div>
+          ))}
+          {company.activities.length === 0 && (
+            <p className="text-sm text-[var(--text-dim)]">まだ活動記録がありません。</p>
+          )}
+        </div>
+      </section>
+
+      {/* タスク */}
+      <section className={`${card} space-y-4`}>
+        <h2 className="font-semibold text-[var(--text)]">タスク</h2>
+        <form action={createTask} className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <input type="hidden" name="companyId" value={company.id} />
+          <input name="title" placeholder="タスク内容" required className={`sm:col-span-2 ${inputClass}`} />
+          <input type="date" name="dueDate" className={inputClass} />
+          <select name="priority" defaultValue="MEDIUM" className={inputClass}>
+            {Object.entries(TASK_PRIORITY_LABEL).map(([value, label]) => (
+              <option key={value} value={value}>
+                優先度: {label}
+              </option>
+            ))}
+          </select>
+          <button type="submit" className={`sm:col-span-4 justify-self-start ${primaryButton}`}>
+            追加
+          </button>
+        </form>
+
+        <div className="space-y-2">
+          {company.tasks.map((t) => (
+            <div key={t.id} className="border border-[var(--line)] rounded-xl p-3 flex items-center justify-between gap-4">
+              <div className="text-sm text-[var(--text)]">
+                <span className={t.status === "DONE" ? "line-through text-[var(--text-dim)]" : ""}>{t.title}</span>
+                <span className="ml-2 text-xs text-[var(--text-dim)]">
+                  {t.dueDate && `期限 ${t.dueDate.toLocaleDateString("ja-JP")} ・ `}
+                  優先度 {TASK_PRIORITY_LABEL[t.priority]}
+                  {t.assignee && ` ・ ${t.assignee.name}`}
+                </span>
+              </div>
+              <form action={updateTaskStatus.bind(null, t.id, t.status === "DONE" ? "TODO" : "DONE", company.id)}>
+                <button
+                  type="submit"
+                  className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                    t.status === "DONE"
+                      ? "bg-[var(--accent)] text-white"
+                      : "bg-[var(--surface-2)] text-[var(--text-dim)] hover:bg-[var(--line)]"
+                  }`}
+                >
+                  {TASK_STATUS_LABEL[t.status]}
+                </button>
+              </form>
+            </div>
+          ))}
+          {company.tasks.length === 0 && <p className="text-sm text-[var(--text-dim)]">まだタスクがありません。</p>}
+        </div>
+      </section>
+
+      {/* ファイル */}
+      <section className={`${card} space-y-4`}>
+        <h2 className="font-semibold text-[var(--text)]">ファイル</h2>
+        <p className="text-xs text-[var(--text-dim)]">
+          Google Drive等の共有リンクを登録します（ファイル本体のアップロードは今後対応予定）。
+        </p>
+        <form action={addFile} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <input type="hidden" name="companyId" value={company.id} />
+          <input name="fileName" placeholder="ファイル名" required className={inputClass} />
+          <input name="url" placeholder="URL" required className={inputClass} />
+          <input name="note" placeholder="メモ（任意）" className={inputClass} />
+          <button type="submit" className={`sm:col-span-3 justify-self-start ${primaryButton}`}>
+            追加
+          </button>
+        </form>
+
+        <div className="space-y-2">
+          {company.files.map((f) => (
+            <div key={f.id} className="border border-[var(--line)] rounded-xl p-3 flex items-center justify-between gap-4 text-sm">
+              <div>
+                <a href={f.url} target="_blank" rel="noreferrer" className="text-[var(--accent)] hover:underline font-medium">
+                  {f.fileName}
+                </a>
+                <span className="text-xs text-[var(--text-dim)] ml-2">
+                  {f.uploadedBy.name} ・ {f.createdAt.toLocaleDateString("ja-JP")}
+                </span>
+              </div>
+              <form action={deleteFile.bind(null, f.id, company.id)}>
+                <button type="submit" className={linkButton}>
+                  削除
+                </button>
+              </form>
+            </div>
+          ))}
+          {company.files.length === 0 && <p className="text-sm text-[var(--text-dim)]">まだファイルがありません。</p>}
+        </div>
       </section>
     </div>
   );

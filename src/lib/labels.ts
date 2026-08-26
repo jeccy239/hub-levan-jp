@@ -67,6 +67,30 @@ export const CONTACT_ROLE_LABEL: Record<string, string> = {
   OTHER: "その他",
 };
 
+export const ACTIVITY_TYPE_LABEL: Record<string, string> = {
+  PHONE: "電話",
+  EMAIL: "メール",
+  ZOOM: "Zoom",
+  VISIT: "対面",
+  INQUIRY: "問い合わせ",
+  PROPOSAL: "提案",
+  QUOTE: "見積",
+  CONTRACT: "契約",
+  OTHER: "その他",
+};
+
+export const TASK_PRIORITY_LABEL: Record<string, string> = {
+  LOW: "低",
+  MEDIUM: "中",
+  HIGH: "高",
+};
+
+export const TASK_STATUS_LABEL: Record<string, string> = {
+  TODO: "未着手",
+  DOING: "対応中",
+  DONE: "完了",
+};
+
 export function formatYen(amount: number | string): string {
   const n = typeof amount === "string" ? Number(amount) : amount;
   return `¥${n.toLocaleString("ja-JP")}`;

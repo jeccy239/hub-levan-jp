@@ -50,19 +50,24 @@ enum ApprovalStatus {
 }
 
 enum UserRole {
-  ADMIN
+  ADMIN // 全権限
+  MANAGER // 閲覧・編集・承認可、システム設定は不可
+  STAFF // 自分が担当する顧客の編集のみ、他は閲覧のみ
+  // 旧ロール。既存データ・移行のため残置（新規ユーザーには割り当てない）
   SALES
   OPERATOR
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  role      UserRole @default(SALES)
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String? // 未設定ユーザーはログイン不可（移行期間中の互換用）
+  role         UserRole @default(STAFF)
+  createdAt    DateTime @default(now())
 
   approvedMessages OutreachMessage[] @relation("ApprovedBy")
+  auditLogs        AuditLog[]
 }
 
 model Company {
@@ -342,6 +347,25 @@ model UpsellProposal {
 
   approvedById String?
   createdAt    DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Human operations audit trail — separate from AiDecisionLog, which records
+// what the AI decided. This records what a logged-in person did.
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action     String // e.g. "lead.status_change", "proposal.approve", "user.login"
+  targetType String
+  targetId   String
+  detail     Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([targetType, targetId])
 }
 
 model CostLedgerEntry {

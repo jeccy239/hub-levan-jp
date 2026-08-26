@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { requireApprover, requireUser } from "@/lib/authz";
+import { logAudit } from "@/lib/audit";
 import { runLeadResearchAgent } from "@/agents/leadResearchAgent";
 import {
   approveAndSendMessage,
@@ -18,20 +20,9 @@ import {
   signContract,
 } from "@/agents/proposalAgent";
 
-// Phase 1 has no auth yet — every approval is attributed to a fixed seed
-// operator account. Real user sessions arrive with RBAC in a later phase.
-const OPERATOR_EMAIL = "operator@levan.jp";
-
-async function getOperatorId(): Promise<string> {
-  const user = await prisma.user.upsert({
-    where: { email: OPERATOR_EMAIL },
-    update: {},
-    create: { email: OPERATOR_EMAIL, name: "Operator", role: "ADMIN" },
-  });
-  return user.id;
-}
-
 export async function createLead(formData: FormData) {
+  await requireUser();
+
   const name = String(formData.get("name") ?? "").trim();
   const website = String(formData.get("website") ?? "").trim();
   const industry = String(formData.get("industry") ?? "").trim() || null;
@@ -53,23 +44,27 @@ export async function createLead(formData: FormData) {
 }
 
 export async function generateOutreachDraft(leadId: string) {
+  await requireUser();
   await draftOutreachMessage(leadId);
   revalidatePath(`/leads/${leadId}`);
 }
 
 export async function approveMessage(messageId: string, leadId: string) {
-  const operatorId = await getOperatorId();
-  await approveAndSendMessage(messageId, operatorId);
+  const user = await requireApprover();
+  await approveAndSendMessage(messageId, user.id);
+  await logAudit({ userId: user.id, action: "outreach.approve", targetType: "outreach_message", targetId: messageId });
   revalidatePath(`/leads/${leadId}`);
 }
 
 export async function declineMessage(messageId: string, leadId: string) {
-  const operatorId = await getOperatorId();
-  await rejectMessage(messageId, operatorId);
+  const user = await requireApprover();
+  await rejectMessage(messageId, user.id);
+  await logAudit({ userId: user.id, action: "outreach.reject", targetType: "outreach_message", targetId: messageId });
   revalidatePath(`/leads/${leadId}`);
 }
 
 export async function submitReply(formData: FormData) {
+  await requireUser();
   const leadId = String(formData.get("leadId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
   if (!leadId || !body) return;
@@ -79,11 +74,13 @@ export async function submitReply(formData: FormData) {
 }
 
 export async function generateBriefing(leadId: string) {
+  await requireUser();
   await generateMeetingBriefing(leadId);
   revalidatePath(`/leads/${leadId}`);
 }
 
 export async function submitMeetingTranscript(formData: FormData) {
+  await requireUser();
   const meetingId = String(formData.get("meetingId") ?? "");
   const leadId = String(formData.get("leadId") ?? "");
   const transcript = String(formData.get("transcript") ?? "").trim();
@@ -94,24 +91,34 @@ export async function submitMeetingTranscript(formData: FormData) {
 }
 
 export async function approveProposalAction(proposalId: string, leadId: string) {
-  const operatorId = await getOperatorId();
-  await approveProposal(proposalId, operatorId);
+  const user = await requireApprover();
+  await approveProposal(proposalId, user.id);
+  await logAudit({ userId: user.id, action: "proposal.approve", targetType: "proposal", targetId: proposalId });
   revalidatePath(`/leads/${leadId}`);
 }
 
 export async function rejectProposalAction(proposalId: string, leadId: string) {
-  const operatorId = await getOperatorId();
-  await rejectProposal(proposalId, operatorId);
+  const user = await requireApprover();
+  await rejectProposal(proposalId, user.id);
+  await logAudit({ userId: user.id, action: "proposal.reject", targetType: "proposal", targetId: proposalId });
   revalidatePath(`/leads/${leadId}`);
 }
 
 export async function signContractAction(formData: FormData) {
+  const user = await requireApprover();
   const proposalId = String(formData.get("proposalId") ?? "");
   const leadId = String(formData.get("leadId") ?? "");
   const plan = String(formData.get("plan") ?? "").trim();
   const monthlyFeeJpy = Number(formData.get("monthlyFeeJpy") ?? 0);
   if (!proposalId || !plan || !monthlyFeeJpy) return;
 
-  await signContract({ proposalId, plan, monthlyFeeJpy });
+  const contract = await signContract({ proposalId, plan, monthlyFeeJpy });
+  await logAudit({
+    userId: user.id,
+    action: "contract.sign",
+    targetType: "contract",
+    targetId: contract.id,
+    detail: { plan, monthlyFeeJpy },
+  });
   revalidatePath(`/leads/${leadId}`);
 }

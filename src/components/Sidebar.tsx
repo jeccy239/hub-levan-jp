@@ -9,7 +9,13 @@ const NAV_ITEMS = [
   { href: "/projects", label: "案件管理" },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({
+  user,
+  onSignOut,
+}: {
+  user: { name?: string | null; email?: string | null } | null;
+  onSignOut: () => void;
+}) {
   const pathname = usePathname();
 
   return (
@@ -37,6 +43,19 @@ export default function Sidebar() {
           );
         })}
       </nav>
+      {user && (
+        <div className="px-3 py-4 border-t border-[var(--line)] space-y-2">
+          <div className="px-3 text-xs text-[var(--text-dim)] truncate">{user.name ?? user.email}</div>
+          <form action={onSignOut}>
+            <button
+              type="submit"
+              className="w-full text-left rounded-xl px-3 py-2 text-sm font-medium text-[var(--text-dim)] hover:bg-[var(--surface)]/60 hover:text-[var(--text)]"
+            >
+              ログアウト
+            </button>
+          </form>
+        </div>
+      )}
     </aside>
   );
 }

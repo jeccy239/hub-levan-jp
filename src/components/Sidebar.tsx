@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: "/leads", label: "リード管理" },
   { href: "/projects", label: "案件管理" },
   { href: "/tasks", label: "タスク" },
+  { href: "/webris", label: "WEBRIS顧客" },
 ];
 
 export default function Sidebar({

@@ -1,0 +1,62 @@
+// Client for WEBRIS's admin API (a separate product/codebase at
+// webris.levan.jp). LEVAN HUB never touches WEBRIS's database directly —
+// it calls an authenticated read (and later write) API instead, so the
+// two apps stay independently deployable. See docs/webris-integration.md
+// for the endpoint contract WEBRIS needs to implement.
+
+export type WebrisOrganization = {
+  id: string;
+  name: string;
+  websiteUrl: string | null;
+  planCode: string;
+  planName: string;
+  monthlyPriceJpy: number;
+  subscriptionStatus: string | null; // active | trialing | past_due | canceled | incomplete | null(free)
+  currentPeriodEnd: string | null; // ISO date
+  createdAt: string; // ISO date — treated as the contract/signup date
+  ownerName: string | null;
+  ownerEmail: string;
+};
+
+export class WebrisNotConfiguredError extends Error {}
+export class WebrisApiError extends Error {}
+
+function getConfig() {
+  const baseUrl = process.env.WEBRIS_API_URL;
+  const secret = process.env.WEBRIS_API_SECRET;
+  if (!baseUrl || !secret) {
+    throw new WebrisNotConfiguredError(
+      "WEBRIS_API_URL / WEBRIS_API_SECRET が未設定です。連携を有効にするには環境変数を設定してください。",
+    );
+  }
+  return { baseUrl, secret };
+}
+
+export async function fetchWebrisOrganizations(): Promise<WebrisOrganization[]> {
+  const { baseUrl, secret } = getConfig();
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/api/levanhub/organizations`, {
+      headers: { Authorization: `Bearer ${secret}` },
+      cache: "no-store",
+    });
+  } catch {
+    throw new WebrisApiError("WEBRISに接続できませんでした。ネットワークまたはURL設定を確認してください。");
+  }
+
+  if (response.status === 404) {
+    throw new WebrisApiError(
+      "WEBRIS側に連携APIがまだ実装されていません（/api/levanhub/organizations が404）。",
+    );
+  }
+  if (!response.ok) {
+    throw new WebrisApiError(`WEBRISからエラーが返されました（HTTP ${response.status}）。`);
+  }
+
+  const data = await response.json();
+  if (!Array.isArray(data)) {
+    throw new WebrisApiError("WEBRISからの応答形式が想定と異なります。");
+  }
+  return data as WebrisOrganization[];
+}

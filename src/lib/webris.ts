@@ -105,3 +105,25 @@ export async function cancelWebrisSubscription(orgId: string): Promise<string> {
   const body = await webrisFetch(`/api/levanhub/organizations/${orgId}/cancel`, { method: "POST" });
   return body?.message ?? "解約を送信しました。";
 }
+
+// Plan codes rarely change; WEBRIS's own API remains the source of truth
+// for price (returned per-organization), this is display labels only.
+export const WEBRIS_PLAN_LABEL: Record<string, string> = {
+  free: "Free",
+  standard: "Standard",
+  pro: "Pro",
+  business: "Business",
+};
+
+export type WebrisPlanChange = {
+  organizationId: string;
+  organizationName: string;
+  from: string | null;
+  to: string | null;
+  changedAt: string;
+};
+
+export async function fetchWebrisPlanChanges(): Promise<WebrisPlanChange[]> {
+  const body = await webrisFetch(`/api/levanhub/plan-changes`);
+  return Array.isArray(body) ? (body as WebrisPlanChange[]) : [];
+}

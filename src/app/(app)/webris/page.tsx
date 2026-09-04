@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { fetchWebrisOrganizations, WebrisApiError, WebrisNotConfiguredError } from "@/lib/webris";
+import {
+  fetchWebrisOrganizations,
+  fetchWebrisPlanChanges,
+  WEBRIS_PLAN_LABEL,
+  WebrisApiError,
+  WebrisNotConfiguredError,
+} from "@/lib/webris";
 import { formatYen } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
@@ -20,12 +26,24 @@ const STATUS_STYLE: Record<string, string> = {
   incomplete: "bg-[var(--danger-tint)] text-[var(--danger)]",
 };
 
-function monthRange(): { from: string; to: string } {
-  const now = new Date();
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+function monthBounds(year: number, month: number) {
+  const first = new Date(year, month, 1);
+  const last = new Date(year, month + 1, 0);
   const fmt = (d: Date) => d.toISOString().slice(0, 10);
   return { from: fmt(first), to: fmt(last) };
+}
+
+// Quick-switch buttons: 6 months back through 1 month ahead, so a plan
+// signed this week still has a working "next month" button.
+function buildMonthOptions() {
+  const now = new Date();
+  const options: { label: string; from: string; to: string }[] = [];
+  for (let offset = -6; offset <= 1; offset++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    const { from, to } = monthBounds(d.getFullYear(), d.getMonth());
+    options.push({ label: `${d.getFullYear()}年${d.getMonth() + 1}月`, from, to });
+  }
+  return options;
 }
 
 export default async function WebrisCustomersPage({
@@ -34,15 +52,18 @@ export default async function WebrisCustomersPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const params = await searchParams;
-  const defaults = monthRange();
-  const from = params.from || defaults.from;
-  const to = params.to || defaults.to;
+  const monthOptions = buildMonthOptions();
+  const currentMonth = monthOptions[6]; // offset 0
+  const from = params.from || currentMonth.from;
+  const to = params.to || currentMonth.to;
 
   let organizations: Awaited<ReturnType<typeof fetchWebrisOrganizations>> = [];
+  let planChanges: Awaited<ReturnType<typeof fetchWebrisPlanChanges>> = [];
   let error: string | null = null;
 
   try {
     organizations = await fetchWebrisOrganizations();
+    planChanges = await fetchWebrisPlanChanges().catch(() => []);
   } catch (e) {
     error =
       e instanceof WebrisNotConfiguredError || e instanceof WebrisApiError
@@ -50,17 +71,14 @@ export default async function WebrisCustomersPage({
         : "WEBRIS顧客情報の取得中に予期しないエラーが発生しました。";
   }
 
-  // Signups within the selected month — the table below shows only these.
   const fromDate = new Date(`${from}T00:00:00`);
   const toDate = new Date(`${to}T23:59:59`);
   const inRange = organizations.filter((org) => {
     const created = new Date(org.createdAt);
     return created >= fromDate && created <= toDate;
   });
+  const displayedRevenue = inRange.reduce((sum, org) => sum + org.monthlyPriceJpy, 0);
 
-  // Plan breakdown reflects ALL current customers (today's state), not the
-  // month filter — it's "how is the customer base composed right now",
-  // separate from "who signed up in this window".
   const byPlan = new Map<string, { planName: string; count: number; monthlyPriceJpy: number }>();
   for (const org of organizations) {
     const entry = byPlan.get(org.planCode) ?? { planName: org.planName, count: 0, monthlyPriceJpy: org.monthlyPriceJpy };
@@ -103,25 +121,43 @@ export default async function WebrisCustomersPage({
             ))}
           </section>
 
-          <form className="flex items-center gap-3 text-sm">
-            <label className="text-[var(--text-dim)]">契約日で絞り込み</label>
-            <input
-              type="date"
-              name="from"
-              defaultValue={from}
-              className="border border-[var(--line)] rounded-xl px-3 py-2 bg-[var(--surface)] text-[var(--text)]"
-            />
-            <span className="text-[var(--text-dim)]">〜</span>
-            <input
-              type="date"
-              name="to"
-              defaultValue={to}
-              className="border border-[var(--line)] rounded-xl px-3 py-2 bg-[var(--surface)] text-[var(--text)]"
-            />
-            <button type="submit" className="bg-[var(--surface-2)] hover:bg-[var(--line)] rounded-xl px-4 py-2 font-medium text-[var(--text)]">
-              表示
-            </button>
-          </form>
+          <section className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {monthOptions.map((m) => {
+                const isActive = m.from === from && m.to === to;
+                return (
+                  <Link
+                    key={m.from}
+                    href={`/webris?from=${m.from}&to=${m.to}`}
+                    className={`text-sm px-3.5 py-1.5 rounded-full font-medium transition-colors ${
+                      isActive
+                        ? "bg-[var(--accent)] text-white"
+                        : "bg-[var(--surface-2)] text-[var(--text-dim)] hover:bg-[var(--line)]"
+                    }`}
+                  >
+                    {m.label}
+                  </Link>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-between border border-[var(--line)] rounded-2xl px-5 py-4 bg-[var(--surface)] shadow-sm">
+              <div>
+                <div className="text-xs text-[var(--text-dim)]">
+                  表示中の期間（{new Date(from).toLocaleDateString("ja-JP")} 〜 {new Date(to).toLocaleDateString("ja-JP")}）に契約した顧客
+                </div>
+                <div className="text-xl font-semibold tabular-nums text-[var(--text)] mt-1">
+                  {inRange.length.toLocaleString("ja-JP")}社
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-[var(--text-dim)]">表示中の売上（月額合計）</div>
+                <div className="text-xl font-semibold tabular-nums text-[var(--text)] mt-1">
+                  {formatYen(displayedRevenue)}
+                </div>
+              </div>
+            </div>
+          </section>
 
           <div className="overflow-x-auto border border-[var(--line)] rounded-2xl bg-[var(--surface)] shadow-sm">
             <table className="w-full text-sm">
@@ -176,6 +212,32 @@ export default async function WebrisCustomersPage({
               </tbody>
             </table>
           </div>
+
+          <section className="space-y-3">
+            <h2 className="font-semibold text-[var(--text)]">プラン変更履歴</h2>
+            <div className="border border-[var(--line)] rounded-2xl bg-[var(--surface)] shadow-sm divide-y divide-[var(--line)]">
+              {planChanges.map((c, i) => (
+                <div key={i} className="px-5 py-3 flex items-center justify-between text-sm">
+                  <div className="text-[var(--text)]">
+                    <Link href={`/webris/${c.organizationId}`} className="font-medium hover:text-[var(--accent)]">
+                      {c.organizationName}
+                    </Link>
+                    <span className="text-[var(--text-dim)] mx-2">
+                      {c.from ? WEBRIS_PLAN_LABEL[c.from] ?? c.from : "—"} → {c.to ? WEBRIS_PLAN_LABEL[c.to] ?? c.to : "—"}
+                    </span>
+                  </div>
+                  <div className="text-xs text-[var(--text-dim)]">
+                    {new Date(c.changedAt).toLocaleString("ja-JP")}
+                  </div>
+                </div>
+              ))}
+              {planChanges.length === 0 && (
+                <p className="px-5 py-6 text-center text-sm text-[var(--text-dim)]">
+                  まだプラン変更の記録がありません（この機能の導入以降の変更のみ記録されます）。
+                </p>
+              )}
+            </div>
+          </section>
         </>
       )}
     </div>

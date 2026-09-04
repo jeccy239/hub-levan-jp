@@ -8,8 +8,10 @@ import {
   createTask,
   deleteContact,
   deleteFile,
+  linkWebrisOrganization,
   recordActivity,
   removeTag,
+  unlinkWebrisOrganization,
   updateCompany,
   updateTaskStatus,
 } from "../actions";
@@ -21,6 +23,7 @@ import {
   TASK_STATUS_LABEL,
   formatYen,
 } from "@/lib/labels";
+import { fetchWebrisOrganizations, WebrisApiError, WebrisNotConfiguredError } from "@/lib/webris";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +63,24 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
   ]);
 
   if (!company) notFound();
+
+  let webrisOrgs: Awaited<ReturnType<typeof fetchWebrisOrganizations>> = [];
+  let webrisError: string | null = null;
+  try {
+    webrisOrgs = await fetchWebrisOrganizations();
+  } catch (e) {
+    webrisError =
+      e instanceof WebrisNotConfiguredError || e instanceof WebrisApiError
+        ? e.message
+        : "WEBRIS顧客情報の取得中に予期しないエラーが発生しました。";
+  }
+  const linkedWebrisOrg = webrisOrgs.find((o) => o.id === company.webrisOrganizationId) ?? null;
+  const alreadyLinkedElsewhere = await prisma.company.findMany({
+    where: { webrisOrganizationId: { not: null }, id: { not: company.id } },
+    select: { webrisOrganizationId: true },
+  });
+  const takenIds = new Set(alreadyLinkedElsewhere.map((c) => c.webrisOrganizationId));
+  const linkableOrgs = webrisOrgs.filter((o) => !takenIds.has(o.id));
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-10 space-y-8">
@@ -132,6 +153,48 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
           )}
         </section>
       )}
+
+      {/* WEBRIS連携 */}
+      <section className={`${card} space-y-3`}>
+        <h2 className="font-semibold text-[var(--text)]">WEBRIS連携</h2>
+        {webrisError ? (
+          <p className="text-sm text-[var(--text-dim)]">{webrisError}</p>
+        ) : linkedWebrisOrg ? (
+          <div className="space-y-2 text-sm">
+            <div className="text-[var(--text)]">
+              <Link href={`/webris/${linkedWebrisOrg.id}`} className="text-[var(--accent)] hover:underline font-medium">
+                {linkedWebrisOrg.name}
+              </Link>
+              {" — "}
+              {linkedWebrisOrg.planName}（{formatYen(linkedWebrisOrg.monthlyPriceJpy)}/月）
+            </div>
+            <div className="text-[var(--text-dim)]">
+              契約日: {new Date(linkedWebrisOrg.createdAt).toLocaleDateString("ja-JP")} ・ ステータス:{" "}
+              {linkedWebrisOrg.subscriptionStatus ?? "無料プラン"}
+            </div>
+            <form action={unlinkWebrisOrganization.bind(null, company.id)}>
+              <button type="submit" className={linkButton}>
+                連携を解除
+              </button>
+            </form>
+          </div>
+        ) : (
+          <form action={linkWebrisOrganization} className="flex items-center gap-3">
+            <input type="hidden" name="companyId" value={company.id} />
+            <select name="webrisOrganizationId" required className={inputClass}>
+              <option value="">WEBRIS顧客を選択...</option>
+              {linkableOrgs.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}（{o.planName} ・ {o.ownerEmail}）
+                </option>
+              ))}
+            </select>
+            <button type="submit" className={primaryButton} disabled={linkableOrgs.length === 0}>
+              連携する
+            </button>
+          </form>
+        )}
+      </section>
 
       {/* 会社情報 */}
       <section className={`${card} space-y-4`}>

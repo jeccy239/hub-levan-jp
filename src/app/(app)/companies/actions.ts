@@ -187,3 +187,33 @@ export async function deleteFile(fileId: string, companyId: string) {
   await logAudit({ userId: user.id, action: "file.delete", targetType: "file_asset", targetId: fileId });
   revalidatePath(`/companies/${companyId}`);
 }
+
+export async function linkWebrisOrganization(formData: FormData) {
+  const user = await requireUser();
+  const companyId = String(formData.get("companyId") ?? "");
+  const webrisOrganizationId = String(formData.get("webrisOrganizationId") ?? "");
+  if (!companyId || !webrisOrganizationId) return;
+
+  await prisma.company.update({
+    where: { id: companyId },
+    data: { webrisOrganizationId },
+  });
+  await logAudit({
+    userId: user.id,
+    action: "company.link_webris",
+    targetType: "company",
+    targetId: companyId,
+    detail: { webrisOrganizationId },
+  });
+  revalidatePath(`/companies/${companyId}`);
+}
+
+export async function unlinkWebrisOrganization(companyId: string) {
+  const user = await requireUser();
+  await prisma.company.update({
+    where: { id: companyId },
+    data: { webrisOrganizationId: null },
+  });
+  await logAudit({ userId: user.id, action: "company.unlink_webris", targetType: "company", targetId: companyId });
+  revalidatePath(`/companies/${companyId}`);
+}

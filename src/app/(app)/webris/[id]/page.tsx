@@ -9,6 +9,7 @@ import {
 import { formatYen } from "@/lib/labels";
 import { changePlanAction } from "../actions";
 import CancelSubscriptionForm from "./CancelSubscriptionForm";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,11 @@ export default async function WebrisCustomerDetailPage({
 
   if (!org) notFound();
 
+  const linkedCompany = await prisma.company.findFirst({
+    where: { webrisOrganizationId: org.id },
+    select: { id: true, name: true },
+  });
+
   return (
     <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
       <div>
@@ -68,6 +74,15 @@ export default async function WebrisCustomerDetailPage({
           {org.name}
         </h1>
         {org.websiteUrl && <p className="text-[var(--text-dim)]">{org.websiteUrl}</p>}
+        {linkedCompany ? (
+          <Link href={`/companies/${linkedCompany.id}`} className="text-sm text-[var(--accent)] hover:underline mt-1 inline-block">
+            顧客管理: {linkedCompany.name} を見る →
+          </Link>
+        ) : (
+          <p className="text-sm text-[var(--text-dim)] mt-1">
+            まだLEVAN HUBの顧客管理と紐付いていません。顧客管理側の会社詳細画面から連携できます。
+          </p>
+        )}
       </div>
 
       <section className={`${card} space-y-2 text-sm`}>

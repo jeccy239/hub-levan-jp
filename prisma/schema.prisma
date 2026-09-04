@@ -97,6 +97,12 @@ model Company {
   firstContactAt DateTime?
   lastContactAt  DateTime?
 
+  // Link to a WEBRIS (webris.levan.jp) Organization — a separate
+  // product/codebase/DB. Stores only the foreign id; all other WEBRIS data
+  // (plan, billing, contract dates) is fetched live via src/lib/webris.ts,
+  // never duplicated here, so it can never drift out of sync.
+  webrisOrganizationId String? @unique
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

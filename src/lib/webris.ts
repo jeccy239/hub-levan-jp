@@ -60,3 +60,48 @@ export async function fetchWebrisOrganizations(): Promise<WebrisOrganization[]> 
   }
   return data as WebrisOrganization[];
 }
+
+export type WebrisPaymentMethod = {
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+} | null;
+
+async function webrisFetch(path: string, init?: RequestInit) {
+  const { baseUrl, secret } = getConfig();
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...init,
+      headers: { ...init?.headers, Authorization: `Bearer ${secret}` },
+      cache: "no-store",
+    });
+  } catch {
+    throw new WebrisApiError("WEBRISに接続できませんでした。ネットワークまたはURL設定を確認してください。");
+  }
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new WebrisApiError(body?.error ?? `WEBRISからエラーが返されました（HTTP ${response.status}）。`);
+  }
+  return body;
+}
+
+export async function fetchWebrisPaymentMethod(orgId: string): Promise<WebrisPaymentMethod> {
+  const body = await webrisFetch(`/api/levanhub/organizations/${orgId}/billing-detail`);
+  return body?.paymentMethod ?? null;
+}
+
+export async function changeWebrisPlan(orgId: string, planCode: string): Promise<string> {
+  const body = await webrisFetch(`/api/levanhub/organizations/${orgId}/plan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ planCode }),
+  });
+  return body?.message ?? "プラン変更を送信しました。";
+}
+
+export async function cancelWebrisSubscription(orgId: string): Promise<string> {
+  const body = await webrisFetch(`/api/levanhub/organizations/${orgId}/cancel`, { method: "POST" });
+  return body?.message ?? "解約を送信しました。";
+}

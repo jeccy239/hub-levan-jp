@@ -30,3 +30,15 @@ export async function requireApprover(): Promise<SessionUser> {
   }
   return user;
 }
+
+/**
+ * For irreversible, destructive actions — permanently deleting a customer's
+ * account and data. Even a Manager can't do this; only Admin.
+ */
+export async function requireAdmin(): Promise<SessionUser> {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    throw new Error("この操作には管理者権限が必要です。");
+  }
+  return user;
+}

@@ -9,6 +9,7 @@ import {
 import { formatYen } from "@/lib/labels";
 import { changePlanAction } from "../actions";
 import CancelSubscriptionForm from "./CancelSubscriptionForm";
+import DeleteAccountForm from "./DeleteAccountForm";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -144,6 +145,15 @@ export default async function WebrisCustomerDetailPage({
           </div>
         </section>
       )}
+
+      <section className={`${card} space-y-3 border-[var(--danger)]/30`}>
+        <h2 className="font-semibold text-[var(--danger)]">危険な操作</h2>
+        <p className="text-xs text-[var(--text-dim)]">
+          アカウントとサイト・キーワード・記事・レポートなど、この顧客に紐づく全データを完全に削除します。契約中の場合はStripeのサブスクリプションも即座に解約されます。
+          <strong className="text-[var(--danger)]">この操作は絶対に元に戻せません。</strong>
+        </p>
+        <DeleteAccountForm orgId={org.id} orgName={org.name} />
+      </section>
     </div>
   );
 }

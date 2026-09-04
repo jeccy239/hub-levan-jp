@@ -115,6 +115,19 @@ export const WEBRIS_PLAN_LABEL: Record<string, string> = {
   business: "Business",
 };
 
+/**
+ * Permanently deletes the WEBRIS organization and everything under it.
+ * confirmName must exactly match the organization's current name — WEBRIS
+ * rejects the request otherwise. There is no undo.
+ */
+export async function deleteWebrisOrganization(orgId: string, confirmName: string): Promise<void> {
+  await webrisFetch(`/api/levanhub/organizations/${orgId}/delete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirmName }),
+  });
+}
+
 export type WebrisPlanChange = {
   organizationId: string;
   organizationName: string;

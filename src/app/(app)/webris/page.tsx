@@ -122,17 +122,17 @@ export default async function WebrisCustomersPage({
           </section>
 
           <section className="space-y-3">
-            <div className="flex flex-wrap gap-2">
+            <div className="inline-flex flex-wrap gap-1 p-1 rounded-full bg-[var(--surface)]/50 backdrop-blur-xl backdrop-saturate-150 border border-white/40 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.06)]">
               {monthOptions.map((m) => {
                 const isActive = m.from === from && m.to === to;
                 return (
                   <Link
                     key={m.from}
                     href={`/webris?from=${m.from}&to=${m.to}`}
-                    className={`text-sm px-3.5 py-1.5 rounded-full font-medium transition-colors ${
+                    className={`text-sm px-3.5 py-1.5 rounded-full font-medium transition-all duration-200 ${
                       isActive
-                        ? "bg-[var(--accent)] text-white"
-                        : "bg-[var(--surface-2)] text-[var(--text-dim)] hover:bg-[var(--line)]"
+                        ? "bg-[var(--accent)]/80 text-white backdrop-blur-xl shadow-sm"
+                        : "text-[var(--text-dim)] hover:bg-white/50 hover:text-[var(--text)]"
                     }`}
                   >
                     {m.label}

@@ -3,14 +3,34 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const NAV_ITEMS = [
+type NavItem = {
+  href: string;
+  label: string;
+  children?: { href: string; label: string }[];
+};
+
+const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "ダッシュボード" },
   { href: "/companies", label: "顧客管理" },
   { href: "/leads", label: "リード管理" },
   { href: "/projects", label: "案件管理" },
   { href: "/tasks", label: "タスク" },
-  { href: "/webris", label: "WEBRIS顧客" },
+  {
+    href: "/webris",
+    label: "WEBRIS（ウェブリス）",
+    children: [
+      { href: "/webris", label: "顧客一覧" },
+      { href: "/webris/claude-usage", label: "Claude Console API" },
+    ],
+  },
 ];
+
+const linkClass = (isActive: boolean) =>
+  `block rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+    isActive
+      ? "bg-[var(--surface)] text-[var(--text)] shadow-sm"
+      : "text-[var(--text-dim)] hover:bg-[var(--surface)]/60 hover:text-[var(--text)]"
+  }`;
 
 export default function Sidebar({
   user,
@@ -30,19 +50,33 @@ export default function Sidebar({
       </div>
       <nav className="flex-1 px-3 space-y-0.5">
         {NAV_ITEMS.map((item) => {
-          const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          const isGroupActive = pathname === item.href || pathname.startsWith(item.href + "/");
+          const isActive = item.href === "/" ? pathname === "/" : isGroupActive;
+
+          if (!item.children) {
+            return (
+              <Link key={item.href} href={item.href} className={linkClass(isActive)}>
+                {item.label}
+              </Link>
+            );
+          }
+
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`block rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
-                isActive
-                  ? "bg-[var(--surface)] text-[var(--text)] shadow-sm"
-                  : "text-[var(--text-dim)] hover:bg-[var(--surface)]/60 hover:text-[var(--text)]"
-              }`}
-            >
-              {item.label}
-            </Link>
+            <div key={item.href}>
+              <div className={`px-3 pt-2 pb-1 text-xs font-medium ${isGroupActive ? "text-[var(--text)]" : "text-[var(--text-dim)]"}`}>
+                {item.label}
+              </div>
+              <div className="pl-2 space-y-0.5">
+                {item.children.map((child) => {
+                  const isChildActive = pathname === child.href;
+                  return (
+                    <Link key={child.href} href={child.href} className={linkClass(isChildActive)}>
+                      {child.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
       </nav>

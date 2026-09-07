@@ -83,6 +83,9 @@ model Company {
   employeeRange String?
   revenueRange  String?
 
+  // WEBRIS SALES AIのリサーチ対象カテゴリ（SEOツール/ヒートマップツール/LLMOツール利用中、広告代理店 等）
+  toolInterest String?
+
   postalCode String?
   address    String? // 番地以降の詳細住所
   phone      String?
@@ -321,6 +324,11 @@ model OutreachMessage {
 
   // inbound-only fields
   replyCategory ReplyCategory?
+
+  // engagement tracking (outbound-only) — set by the open-pixel / click
+  // redirect endpoints under src/app/api/track/, never written by hand.
+  openedAt  DateTime?
+  clickedAt DateTime?
 
   createdAt DateTime @default(now())
 

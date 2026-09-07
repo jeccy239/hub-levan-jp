@@ -13,6 +13,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "ダッシュボード" },
   { href: "/companies", label: "顧客管理" },
   { href: "/leads", label: "リード管理" },
+  { href: "/sales-ai", label: "WEBRIS SALES AI" },
   { href: "/projects", label: "案件管理" },
   { href: "/tasks", label: "タスク" },
   {

@@ -94,6 +94,84 @@ export async function approveAndSendMessage(messageId: string, approvedById: str
   return message;
 }
 
+function withTracking(body: string, messageId: string) {
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://hub.levan.jp";
+  const trackedLink = `${base}/api/track/click/${messageId}?to=${encodeURIComponent("https://webris.levan.jp")}`;
+  return (
+    `${body}\n\n詳しくはこちら: ${trackedLink}\n\n` +
+    `<img src="${base}/api/track/open/${messageId}" width="1" height="1" alt="" style="display:none" />`
+  );
+}
+
+function fillTemplate(template: string, companyName: string) {
+  return template.replaceAll("{{company}}", companyName);
+}
+
+/**
+ * WEBRIS SALES AI — 一斉配信。人間が対象企業とテンプレートを選び、明示的に
+ * 「送信」を押したときだけ動く（Level 1 の変形：下書きではなく実行そのものを
+ * 人間が承認するボタン操作）。承認フローをスキップする代わりに、送信者本人の
+ * userId を承認者として記録し、AuditLogにも残す。
+ */
+export async function sendBulkOutreach(params: {
+  leadIds: string[];
+  subjectTemplate: string;
+  bodyTemplate: string;
+  approvedById: string;
+}) {
+  const leads = await prisma.lead.findMany({
+    where: { id: { in: params.leadIds } },
+    include: { company: true },
+  });
+
+  const sent: string[] = [];
+  for (const lead of leads) {
+    const subject = fillTemplate(params.subjectTemplate, lead.company.name);
+    const bodyDraft = fillTemplate(params.bodyTemplate, lead.company.name);
+
+    const message = await prisma.outreachMessage.create({
+      data: {
+        leadId: lead.id,
+        direction: OutreachDirection.OUTBOUND,
+        subject,
+        body: bodyDraft,
+        approvalStatus: ApprovalStatus.APPROVED,
+        approvedById: params.approvedById,
+        sentAt: new Date(),
+      },
+    });
+
+    await prisma.outreachMessage.update({
+      where: { id: message.id },
+      data: { body: withTracking(bodyDraft, message.id) },
+    });
+
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: {
+        status: lead.status === LeadStatus.NEW || lead.status === LeadStatus.RESEARCHED ? lead.status : LeadStatus.CONTACTED,
+        lastContactedAt: new Date(),
+      },
+    });
+
+    sent.push(message.id);
+  }
+
+  return sent;
+}
+
+/**
+ * テスト送信 — DBには保存せず、実際の配信も行わない（メール配信基盤が
+ * 未接続のため）。プレビュー確認用のシミュレーションとして扱う。
+ */
+export async function sendTestEmail(params: { subjectTemplate: string; bodyTemplate: string; testCompanyName?: string }) {
+  const sample = params.testCompanyName || "サンプル株式会社";
+  return {
+    subject: fillTemplate(params.subjectTemplate, sample),
+    body: fillTemplate(params.bodyTemplate, sample),
+  };
+}
+
 export async function rejectMessage(messageId: string, approvedById: string) {
   return prisma.outreachMessage.update({
     where: { id: messageId },

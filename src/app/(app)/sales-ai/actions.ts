@@ -5,19 +5,32 @@ import { requireApprover, requireUser } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
 import { discoverProspectCompanies } from "@/agents/leadResearchAgent";
 import { sendBulkOutreach, sendTestEmail } from "@/agents/salesAgent";
+import { GbizApiError, GbizNotConfiguredError } from "@/lib/gbizinfo";
 
-export async function runProspectingAction() {
+export async function runProspectingAction(formData?: FormData) {
   await requireUser();
-  const created = await discoverProspectCompanies(10);
-  revalidatePath("/sales-ai");
-  return { count: created.length };
+  const prefecture = String(formData?.get("prefecture") ?? "") || undefined;
+  const page = Number(formData?.get("page") ?? 1) || 1;
+
+  try {
+    const r = await discoverProspectCompanies({ prefecture, page, limit: 10 });
+    revalidatePath("/sales-ai");
+    return { ok: true as const, ...r };
+  } catch (e) {
+    if (e instanceof GbizNotConfiguredError || e instanceof GbizApiError) {
+      return { ok: false as const, error: e.message };
+    }
+    throw e;
+  }
 }
 
 export async function sendTestEmailAction(formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
   const subjectTemplate = String(formData.get("subject") ?? "");
   const bodyTemplate = String(formData.get("body") ?? "");
-  return sendTestEmail({ subjectTemplate, bodyTemplate });
+  const to = String(formData.get("to") ?? "").trim() || user.email;
+
+  return sendTestEmail({ subjectTemplate, bodyTemplate, to });
 }
 
 export async function sendBulkOutreachAction(formData: FormData) {
@@ -30,17 +43,24 @@ export async function sendBulkOutreachAction(formData: FormData) {
     throw new Error("件名・本文・送信先企業をすべて指定してください。");
   }
 
-  const sentIds = await sendBulkOutreach({ leadIds, subjectTemplate, bodyTemplate, approvedById: user.id });
+  const outcome = await sendBulkOutreach({ leadIds, subjectTemplate, bodyTemplate, approvedById: user.id });
 
   await logAudit({
     userId: user.id,
     action: "sales_ai.bulk_send",
     targetType: "outreach_message",
-    targetId: sentIds[0] ?? "batch",
-    detail: { count: sentIds.length, leadIds },
+    targetId: "batch",
+    detail: {
+      requested: outcome.total,
+      delivered: outcome.delivered,
+      recorded: outcome.recorded,
+      skippedNoAddress: outcome.skippedNoAddress.length,
+      failed: outcome.failed.length,
+      emailConfigured: outcome.emailConfigured,
+    },
   });
 
   revalidatePath("/sales-ai");
   revalidatePath("/leads");
-  return { count: sentIds.length };
+  return outcome;
 }

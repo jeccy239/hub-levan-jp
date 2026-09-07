@@ -6,6 +6,8 @@ import { TOOL_INTEREST_CATEGORIES } from "@/agents/leadResearchAgent";
 import ProspectingButton from "./ProspectingButton";
 
 export const dynamic = "force-dynamic";
+// リサーチ実行は 10社ぶんの外部サイト取得を伴うため、既定の実行時間では足りない
+export const maxDuration = 60;
 
 function todayRange() {
   const now = new Date();

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function ComposePage() {
   const leads = await prisma.lead.findMany({
     where: { status: { in: [LeadStatus.NEW, LeadStatus.RESEARCHED, LeadStatus.QUALIFIED, LeadStatus.CONTACTED] } },
-    include: { company: true },
+    include: { company: { include: { contacts: { where: { email: { not: null } }, take: 1 } } } },
     orderBy: { potentialScore: "desc" },
   });
 
@@ -16,6 +16,8 @@ export default async function ComposePage() {
     companyName: l.company.name,
     toolInterest: l.company.toolInterest,
     potentialScore: l.potentialScore,
+    recipient: l.company.publicEmail ?? l.company.contacts[0]?.email ?? null,
+    detectedTools: Array.isArray(l.company.detectedTools) ? (l.company.detectedTools as string[]) : [],
   }));
 
   return (

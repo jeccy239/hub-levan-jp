@@ -3,6 +3,7 @@ import { callLlm } from "./llm";
 import { logDecision } from "./decisionLog";
 import { ApprovalStatus, LeadStatus, OutreachDirection, ReplyCategory } from "@/generated/prisma/client";
 import { LEAD_STATUS_LABEL, REPLY_CATEGORY_LABEL } from "@/lib/labels";
+import { isEmailConfigured, sendEmail, textToHtml } from "@/lib/email";
 
 const AGENT_NAME = "sales_agent";
 
@@ -94,38 +95,64 @@ export async function approveAndSendMessage(messageId: string, approvedById: str
   return message;
 }
 
-function withTracking(body: string, messageId: string) {
+function trackingParts(messageId: string) {
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://hub.levan.jp";
-  const trackedLink = `${base}/api/track/click/${messageId}?to=${encodeURIComponent("https://webris.levan.jp")}`;
-  return (
-    `${body}\n\n詳しくはこちら: ${trackedLink}\n\n` +
-    `<img src="${base}/api/track/open/${messageId}" width="1" height="1" alt="" style="display:none" />`
-  );
+  return {
+    link: `${base}/api/track/click/${messageId}?to=${encodeURIComponent("https://webris.levan.jp")}`,
+    pixel: `<img src="${base}/api/track/open/${messageId}" width="1" height="1" alt="" style="display:none">`,
+  };
 }
 
 function fillTemplate(template: string, companyName: string) {
   return template.replaceAll("{{company}}", companyName);
 }
 
+export type BulkSendOutcome = {
+  total: number;
+  delivered: number;
+  recorded: number;
+  skippedNoAddress: { company: string }[];
+  failed: { company: string; reason: string }[];
+  emailConfigured: boolean;
+};
+
 /**
  * WEBRIS SALES AI — 一斉配信。人間が対象企業とテンプレートを選び、明示的に
  * 「送信」を押したときだけ動く（Level 1 の変形：下書きではなく実行そのものを
  * 人間が承認するボタン操作）。承認フローをスキップする代わりに、送信者本人の
  * userId を承認者として記録し、AuditLogにも残す。
+ *
+ * 宛先は Company.publicEmail（サイト上で公開されている法人の問い合わせ先）
+ * または登録済み Contact のアドレスのみ。アドレスが無い企業はスキップし、
+ * 呼び出し元にその旨を返す（黙って送信済み扱いにはしない）。
  */
 export async function sendBulkOutreach(params: {
   leadIds: string[];
   subjectTemplate: string;
   bodyTemplate: string;
   approvedById: string;
-}) {
+}): Promise<BulkSendOutcome> {
   const leads = await prisma.lead.findMany({
     where: { id: { in: params.leadIds } },
-    include: { company: true },
+    include: { company: { include: { contacts: { where: { email: { not: null } }, take: 1 } } } },
   });
 
-  const sent: string[] = [];
+  const outcome: BulkSendOutcome = {
+    total: leads.length,
+    delivered: 0,
+    recorded: 0,
+    skippedNoAddress: [],
+    failed: [],
+    emailConfigured: isEmailConfigured(),
+  };
+
   for (const lead of leads) {
+    const recipient = lead.company.publicEmail ?? lead.company.contacts[0]?.email ?? null;
+    if (!recipient) {
+      outcome.skippedNoAddress.push({ company: lead.company.name });
+      continue;
+    }
+
     const subject = fillTemplate(params.subjectTemplate, lead.company.name);
     const bodyDraft = fillTemplate(params.bodyTemplate, lead.company.name);
 
@@ -137,39 +164,55 @@ export async function sendBulkOutreach(params: {
         body: bodyDraft,
         approvalStatus: ApprovalStatus.APPROVED,
         approvedById: params.approvedById,
-        sentAt: new Date(),
       },
     });
+
+    const { link, pixel } = trackingParts(message.id);
+    const text = `${bodyDraft}\n\n詳しくはこちら: ${link}`;
+    const html = `${textToHtml(text)}${pixel}`;
+
+    const result = await sendEmail({ to: recipient, subject, text, html });
+
+    if (result.delivered) {
+      outcome.delivered++;
+    } else if (outcome.emailConfigured) {
+      // 配信基盤は設定済みなのに失敗した = 本物のエラー。送信済みにしない。
+      outcome.failed.push({ company: lead.company.name, reason: result.reason });
+      await prisma.outreachMessage.delete({ where: { id: message.id } });
+      continue;
+    }
 
     await prisma.outreachMessage.update({
       where: { id: message.id },
-      data: { body: withTracking(bodyDraft, message.id) },
+      data: { body: text, sentAt: new Date() },
     });
+    outcome.recorded++;
 
     await prisma.lead.update({
       where: { id: lead.id },
-      data: {
-        status: lead.status === LeadStatus.NEW || lead.status === LeadStatus.RESEARCHED ? lead.status : LeadStatus.CONTACTED,
-        lastContactedAt: new Date(),
-      },
+      data: { status: LeadStatus.CONTACTED, lastContactedAt: new Date() },
     });
-
-    sent.push(message.id);
   }
 
-  return sent;
+  return outcome;
 }
 
 /**
- * テスト送信 — DBには保存せず、実際の配信も行わない（メール配信基盤が
- * 未接続のため）。プレビュー確認用のシミュレーションとして扱う。
+ * テスト送信 — TEST_EMAIL_TO（未設定なら操作者本人）宛に1通だけ実送信する。
+ * 実配信が未設定の場合はプレビュー内容だけを返す。
  */
-export async function sendTestEmail(params: { subjectTemplate: string; bodyTemplate: string; testCompanyName?: string }) {
+export async function sendTestEmail(params: {
+  subjectTemplate: string;
+  bodyTemplate: string;
+  to: string;
+  testCompanyName?: string;
+}) {
   const sample = params.testCompanyName || "サンプル株式会社";
-  return {
-    subject: fillTemplate(params.subjectTemplate, sample),
-    body: fillTemplate(params.bodyTemplate, sample),
-  };
+  const subject = `[テスト] ${fillTemplate(params.subjectTemplate, sample)}`;
+  const text = fillTemplate(params.bodyTemplate, sample);
+
+  const result = await sendEmail({ to: params.to, subject, text });
+  return { subject, body: text, to: params.to, ...result };
 }
 
 export async function rejectMessage(messageId: string, approvedById: string) {

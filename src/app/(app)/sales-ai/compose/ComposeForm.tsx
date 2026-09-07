@@ -8,6 +8,8 @@ type Candidate = {
   companyName: string;
   toolInterest: string | null;
   potentialScore: number | null;
+  recipient: string | null;
+  detectedTools: string[];
 };
 
 const DEFAULT_SUBJECT = "【ご提案】{{company}}様のSEO・コンテンツ運用について";
@@ -21,15 +23,16 @@ export default function ComposeForm({ candidates }: { candidates: Candidate[] })
   const [subject, setSubject] = useState(DEFAULT_SUBJECT);
   const [body, setBody] = useState(DEFAULT_BODY);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [preview, setPreview] = useState<{ subject: string; body: string } | null>(null);
+  const [preview, setPreview] = useState<{ subject: string; body: string; note: string } | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const allSelected = selected.size > 0 && selected.size === candidates.length;
+  const sendable = candidates.filter((c) => c.recipient);
+  const allSelected = selected.size > 0 && selected.size === sendable.length;
 
   function toggleAll() {
-    setSelected(allSelected ? new Set() : new Set(candidates.map((c) => c.leadId)));
+    setSelected(allSelected ? new Set() : new Set(sendable.map((c) => c.leadId)));
   }
 
   function toggleOne(leadId: string) {
@@ -49,7 +52,13 @@ export default function ComposeForm({ candidates }: { candidates: Candidate[] })
     formData.set("body", body);
     startTransition(async () => {
       const p = await sendTestEmailAction(formData);
-      setPreview(p);
+      setPreview({
+        subject: p.subject,
+        body: p.body,
+        note: p.delivered
+          ? `${p.to} 宛に実際に送信しました。`
+          : `実送信されていません（${p.reason}）。以下は本文プレビューです。`,
+      });
     });
   }
 
@@ -70,7 +79,12 @@ export default function ComposeForm({ candidates }: { candidates: Candidate[] })
     startTransition(async () => {
       try {
         const r = await sendBulkOutreachAction(formData);
-        setResult(`${r.count}社に送信しました。`);
+        const parts = [
+          r.emailConfigured ? `${r.delivered}社に実送信` : `${r.recorded}社を記録（配信基盤未設定のため実送信なし）`,
+        ];
+        if (r.skippedNoAddress.length > 0) parts.push(`アドレス無しでスキップ ${r.skippedNoAddress.length}社`);
+        if (r.failed.length > 0) parts.push(`失敗 ${r.failed.length}社（${r.failed[0].reason}）`);
+        setResult(parts.join(" / "));
         setSelected(new Set());
       } catch (e) {
         setError(e instanceof Error ? e.message : "送信に失敗しました。");
@@ -122,7 +136,7 @@ export default function ComposeForm({ candidates }: { candidates: Candidate[] })
 
         {preview && (
           <div className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] p-4 text-sm">
-            <div className="text-xs text-[var(--text-dim)] mb-2">テストプレビュー（実際には送信されません）</div>
+            <div className="text-xs text-[var(--text-dim)] mb-2">{preview.note}</div>
             <div className="font-medium text-[var(--text)]">{preview.subject}</div>
             <div className="mt-2 whitespace-pre-wrap text-[var(--text-dim)]">{preview.body}</div>
           </div>
@@ -131,17 +145,38 @@ export default function ComposeForm({ candidates }: { candidates: Candidate[] })
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-[var(--text)]">送信先企業を選択</h2>
+          <h2 className="font-semibold text-[var(--text)]">
+            送信先企業を選択
+            <span className="ml-2 text-xs font-normal text-[var(--text-dim)]">
+              送信可能 {sendable.length} / 全 {candidates.length} 社
+            </span>
+          </h2>
           <button type="button" onClick={toggleAll} className="text-xs font-medium text-[var(--accent)]">
             {allSelected ? "全解除" : "全選択"}
           </button>
         </div>
         <div className="border border-[var(--line)] rounded-2xl bg-[var(--surface)] shadow-sm divide-y divide-[var(--line)] max-h-96 overflow-y-auto">
           {candidates.map((c) => (
-            <label key={c.leadId} className="flex items-center gap-3 px-4 py-3 text-sm cursor-pointer hover:bg-[var(--surface-2)]">
-              <input type="checkbox" checked={selected.has(c.leadId)} onChange={() => toggleOne(c.leadId)} />
-              <span className="flex-1 text-[var(--text)]">{c.companyName}</span>
-              <span className="text-xs text-[var(--text-dim)]">{c.toolInterest ?? "—"}</span>
+            <label
+              key={c.leadId}
+              className={`flex items-center gap-3 px-4 py-3 text-sm ${
+                c.recipient ? "cursor-pointer hover:bg-[var(--surface-2)]" : "opacity-50 cursor-not-allowed"
+              }`}
+            >
+              <input
+                type="checkbox"
+                disabled={!c.recipient}
+                checked={selected.has(c.leadId)}
+                onChange={() => toggleOne(c.leadId)}
+              />
+              <span className="flex-1 min-w-0">
+                <span className="block text-[var(--text)] truncate">{c.companyName}</span>
+                <span className="block text-xs text-[var(--text-dim)] truncate">
+                  {c.recipient ?? "公開アドレス未取得のため送信不可"}
+                  {c.detectedTools.length > 0 && `  ・${c.detectedTools.slice(0, 3).join("/")}`}
+                </span>
+              </span>
+              <span className="text-xs text-[var(--text-dim)] whitespace-nowrap">{c.toolInterest ?? "—"}</span>
               <span className="text-xs tabular-nums text-[var(--text-dim)] w-10 text-right">{c.potentialScore ?? "—"}</span>
             </label>
           ))}

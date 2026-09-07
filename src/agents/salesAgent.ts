@@ -103,8 +103,30 @@ function trackingParts(messageId: string) {
   };
 }
 
-function fillTemplate(template: string, companyName: string) {
-  return template.replaceAll("{{company}}", companyName);
+export type TemplateContext = {
+  company: string;
+  tools: string[];
+  seoGaps: string[];
+};
+
+/** テンプレート差込。{{tools}} と {{seoGap}} はサイト実解析の結果を使うため、
+ *  「御社はHotjarをお使いですが、meta descriptionが未設定です」のように
+ *  実際の観測に基づいた文面になる。 */
+export function fillTemplate(template: string, ctx: TemplateContext) {
+  const tools = ctx.tools.length > 0 ? ctx.tools.join("・") : "アクセス解析ツール";
+  const seoGap = ctx.seoGaps.length > 0 ? ctx.seoGaps.slice(0, 2).join("・") : "コンテンツ更新頻度";
+  return template
+    .replaceAll("{{company}}", ctx.company)
+    .replaceAll("{{tools}}", tools)
+    .replaceAll("{{seoGap}}", seoGap);
+}
+
+function contextOf(company: { name: string; detectedTools: unknown; seoGaps: unknown }): TemplateContext {
+  return {
+    company: company.name,
+    tools: Array.isArray(company.detectedTools) ? (company.detectedTools as string[]) : [],
+    seoGaps: Array.isArray(company.seoGaps) ? (company.seoGaps as string[]) : [],
+  };
 }
 
 export type BulkSendOutcome = {
@@ -153,8 +175,9 @@ export async function sendBulkOutreach(params: {
       continue;
     }
 
-    const subject = fillTemplate(params.subjectTemplate, lead.company.name);
-    const bodyDraft = fillTemplate(params.bodyTemplate, lead.company.name);
+    const ctx = contextOf(lead.company);
+    const subject = fillTemplate(params.subjectTemplate, ctx);
+    const bodyDraft = fillTemplate(params.bodyTemplate, ctx);
 
     const message = await prisma.outreachMessage.create({
       data: {
@@ -205,14 +228,55 @@ export async function sendTestEmail(params: {
   subjectTemplate: string;
   bodyTemplate: string;
   to: string;
-  testCompanyName?: string;
+  /** 指定するとその企業の実データで差込む。未指定ならサンプル値。 */
+  sampleLeadId?: string;
 }) {
-  const sample = params.testCompanyName || "サンプル株式会社";
-  const subject = `[テスト] ${fillTemplate(params.subjectTemplate, sample)}`;
-  const text = fillTemplate(params.bodyTemplate, sample);
+  let ctx: TemplateContext = {
+    company: "サンプル株式会社",
+    tools: ["Google Tag Manager", "Microsoft Clarity"],
+    seoGaps: ["meta descriptionが無い", "構造化データ(JSON-LD)が無い"],
+  };
+
+  if (params.sampleLeadId) {
+    const lead = await prisma.lead.findUnique({
+      where: { id: params.sampleLeadId },
+      include: { company: true },
+    });
+    if (lead) ctx = contextOf(lead.company);
+  }
+
+  const subject = `[テスト] ${fillTemplate(params.subjectTemplate, ctx)}`;
+  const text = fillTemplate(params.bodyTemplate, ctx);
 
   const result = await sendEmail({ to: params.to, subject, text });
   return { subject, body: text, to: params.to, ...result };
+}
+
+/** テンプレート下書きをAIに作らせる。APIキー未設定時は、実データ差込を
+ *  前提にした既定テンプレートをそのまま返す（作り話をしない）。 */
+export async function draftTemplate(instruction: string) {
+  const system =
+    "あなたはLEVANのSales Agentです。SEOコンテンツ運用代行サービスのBtoB営業メールのテンプレートを作成してください。" +
+    "テンプレートには {{company}}（会社名）、{{tools}}（相手が導入済みのツール名）、{{seoGap}}（相手サイトのSEO上の不足）が差込変数として使えます。" +
+    "{{seoGap}}は「meta descriptionが無い」のような文になるため、件名には入れず本文中で自然につながる位置に置いてください。" +
+    "特定電子メール法を遵守し、送信者情報と配信停止方法を必ず本文末尾に含めてください。営業色が強すぎない、簡潔で丁寧な日本語で。" +
+    '必ず次のJSON形式のみで応答してください: {"subject": "...", "body": "..."}';
+
+  const stubResponse = JSON.stringify({
+    subject: "【{{company}}様】サイト改善についてのご提案",
+    body:
+      "{{company}} ご担当者様\n\n" +
+      "突然のご連絡失礼いたします。株式会社LEVANの営業担当です。\n" +
+      "貴社サイトを拝見したところ、{{tools}}を活用されており、計測環境をしっかり整えていらっしゃると感じました。\n\n" +
+      "一方で、{{seoGap}}といった点に改善余地があるようにお見受けしました。\n" +
+      "弊社はSEOコンテンツ制作の運用代行を提供しており、こうした基盤が整っている企業様ほど成果が出やすい傾向があります。\n\n" +
+      "もしご興味がありましたら、30分ほどオンラインでお話しさせていただけないでしょうか。\n\n" +
+      "――――――――――\n株式会社LEVAN\nhttps://hub.levan.jp\n" +
+      "配信停止をご希望の場合は、本メールにご返信いただければ以後お送りいたしません。",
+  });
+
+  const llm = await callLlm({ system, prompt: instruction, stubResponse, maxTokens: 900 });
+  return parseDraft(llm.text);
 }
 
 export async function rejectMessage(messageId: string, approvedById: string) {

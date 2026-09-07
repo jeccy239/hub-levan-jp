@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireApprover, requireUser } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
 import { discoverProspectCompanies } from "@/agents/leadResearchAgent";
-import { sendBulkOutreach, sendTestEmail } from "@/agents/salesAgent";
+import { draftTemplate, sendBulkOutreach, sendTestEmail } from "@/agents/salesAgent";
 import { GbizApiError, GbizNotConfiguredError } from "@/lib/gbizinfo";
 
 export async function runProspectingAction(formData?: FormData) {
@@ -29,8 +29,14 @@ export async function sendTestEmailAction(formData: FormData) {
   const subjectTemplate = String(formData.get("subject") ?? "");
   const bodyTemplate = String(formData.get("body") ?? "");
   const to = String(formData.get("to") ?? "").trim() || user.email;
+  const sampleLeadId = String(formData.get("sampleLeadId") ?? "") || undefined;
 
-  return sendTestEmail({ subjectTemplate, bodyTemplate, to });
+  return sendTestEmail({ subjectTemplate, bodyTemplate, to, sampleLeadId });
+}
+
+export async function draftTemplateAction(instruction: string) {
+  await requireUser();
+  return draftTemplate(instruction);
 }
 
 export async function sendBulkOutreachAction(formData: FormData) {

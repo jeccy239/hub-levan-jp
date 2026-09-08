@@ -51,6 +51,9 @@ export default function ComposeForm({
   const [manualEmails, setManualEmails] = useState("");
   const [aiInstruction, setAiInstruction] = useState("");
   const [format, setFormat] = useState<"text" | "html">("text");
+  // どのテンプレートを見ているかを覚えておき、形式を切り替えても
+  // 同じテンプレートのもう一方の記法に移れるようにする。
+  const [presetIndex, setPresetIndex] = useState(0);
   const [status, setStatus] = useState<{ kind: "ok" | "error" | "info"; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -225,15 +228,17 @@ export default function ComposeForm({
                     type="button"
                     onClick={() => {
                       if (f === format) return;
-                      // 記法を切り替えたら、その記法の既定テンプレートを読み込む。
-                      // テキストのままHTMLに切り替えると、改行が消えたメールになる。
-                      const preset = (f === "html" ? HTML_PRESETS : PRESETS)[0];
+                      // 同じテンプレートの、切り替え先の記法版を読み込む。
+                      // テキストの本文をHTMLに持ち越すと改行が全部消えるため、
+                      // 記法をまたいで本文をそのまま運ぶことはしない。
+                      const set = f === "html" ? HTML_PRESETS : PRESETS;
+                      const preset = set[presetIndex] ?? set[0];
                       setFormat(f);
                       setSubject(preset.subject);
                       setBody(preset.body);
                       setStatus({
                         kind: "info",
-                        text: f === "html" ? "HTML形式に切り替えました。" : "テキスト形式に切り替えました。",
+                        text: `${f === "html" ? "HTML" : "テキスト"}形式の「${preset.name}」を読み込みました。`,
                       });
                     }}
                     className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
@@ -253,16 +258,17 @@ export default function ComposeForm({
 
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium text-[var(--text-dim)]">テンプレート</span>
-              {activePresets.map((p) => (
+              {activePresets.map((p, i) => (
                 <button
                   key={p.name}
                   type="button"
                   onClick={() => {
+                    setPresetIndex(i);
                     setSubject(p.subject);
                     setBody(p.body);
                     setStatus({ kind: "info", text: `テンプレート「${p.name}」を読み込みました。` });
                   }}
-                  className={chip(false)}
+                  className={chip(presetIndex === i)}
                 >
                   {p.name}
                 </button>

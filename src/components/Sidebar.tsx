@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -56,8 +57,15 @@ export default function Sidebar({
   return (
     <aside className="w-60 shrink-0 h-screen sticky top-0 flex flex-col border-r border-[var(--line)] bg-[var(--surface-2)]">
       <div className="px-5 py-5">
-        <Link href="/" className="font-semibold tracking-tight text-[var(--text)]">
-          LEVAN <span className="text-[var(--text-dim)] font-normal">ビジネスOS</span>
+        <Link href="/" className="block">
+          <Image
+            src="/logo_blue_02.png"
+            alt="LEVAN ビジネスOS"
+            width={2000}
+            height={512}
+            priority
+            className="h-8 w-auto"
+          />
         </Link>
       </div>
       <nav className="flex-1 px-3 space-y-0.5">

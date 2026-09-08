@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LEVAN AI Business OS",
+  title: "LevanHub｜社内ビジネスツール 株式会社LEVAN",
   description: "AI営業・SEO制作・レポート・アップセルを一つのデータ基盤でつなぐ業務OS",
   robots: {
     index: false,

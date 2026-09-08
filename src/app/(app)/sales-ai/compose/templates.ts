@@ -112,11 +112,11 @@ export const HTML_PRESETS: MailTemplate[] = [
     subject: "{{company}}様のSEOで1点気になった点があります",
     body: `<div style="max-width:600px;margin:0 auto;font-family:sans-serif;color:#111111">
 
-  <div style="background:#0071e3;padding:18px;text-align:center">
-    <img src="${IMAGE_BASE}/logo.png" alt="WEBRIS" height="32" style="display:block;margin:0 auto;border:0">
+  <div style="background:#ffffff;padding:20px;text-align:center;border-bottom:1px solid #e5e5e7">
+    <img src="${IMAGE_BASE}/logo_01.png" alt="WEBRIS" width="175" height="32" style="display:block;margin:0 auto;border:0">
   </div>
 
-  <img src="${IMAGE_BASE}/hero.png" alt="AI SEO分析ツール WEBRIS" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0">
+  <img src="${IMAGE_BASE}/hero_01.jpg" alt="AIが、あなたのWebサイトを分析しSEOの成長をサポートします" width="600" height="400" style="display:block;width:100%;max-width:600px;height:auto;border:0">
 
   <div style="padding:28px 24px;font-size:14px;line-height:1.9">
 
@@ -136,6 +136,61 @@ export const HTML_PRESETS: MailTemplate[] = [
 
     <p>弊社のAI SEOツール「WEBRIS」は、サイトを解析して優先度の高い改善点をAIが自動で洗い出します。
     貴社サイトをそのまま分析できますので、よろしければお試しください。</p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px auto">
+      <tr><td style="background:#1d1d1f;border-radius:8px">
+        <a href="{{webris_url}}" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:bold;text-decoration:none">無料でSEO分析する</a>
+      </td></tr>
+    </table>
+
+    <div style="background:#fbf8e8;padding:16px 20px;margin:24px 0;font-size:13px;line-height:1.9;color:#555555">
+      ※ 無料プランでそのままご利用いただけます<br>
+      ※ 分析だけのご利用でも問題ありません<br>
+      ※ ご不要でしたら本メールへのご返信で配信を停止します
+    </div>
+
+    <hr style="border:none;border-top:1px solid #dddddd;margin:28px 0">
+    <p style="font-size:12px;color:#666666;line-height:1.7">
+      {{company_address}}<br>
+      WEBRIS {{sender}}<br>
+      配信停止をご希望の場合は、本メールにご返信いただければ以後お送りいたしません。
+    </p>
+
+  </div>
+</div>`,
+  },
+  {
+    // hero_02 はヒートマップ訴求。宛先タブの「ヒートマップツール利用企業」に
+    // 絞って送ると、バナーと相手の実態が噛み合う。
+    name: "新規開拓（ヒートマップ訴求）",
+    subject: "{{company}}様のサイト、ユーザーの動きは見えていますか",
+    body: `<div style="max-width:600px;margin:0 auto;font-family:sans-serif;color:#111111">
+
+  <div style="background:#ffffff;padding:20px;text-align:center;border-bottom:1px solid #e5e5e7">
+    <img src="${IMAGE_BASE}/logo_01.png" alt="WEBRIS" width="175" height="32" style="display:block;margin:0 auto;border:0">
+  </div>
+
+  <img src="${IMAGE_BASE}/hero_02.jpg" alt="ヒートマップ機能で、ユーザーがどこを見てどこをクリックしているかをひと目で把握できます" width="600" height="400" style="display:block;width:100%;max-width:600px;height:auto;border:0">
+
+  <div style="padding:28px 24px;font-size:14px;line-height:1.9">
+
+    <p>{{company}} ご担当者様</p>
+
+    <p>突然のご連絡失礼いたします。株式会社LEVANの{{sender}}と申します。<br>
+    貴社サイト（<a href="{{website}}" style="color:#0071e3">{{website}}</a>）を拝見してご連絡しました。</p>
+
+    <p>{{tools}}をお使いとのことで、ユーザー行動の計測にすでに取り組まれていると拝察しました。</p>
+
+    <div style="background:#e8f1fd;padding:18px 20px;margin:24px 0;line-height:1.9">
+      <div style="font-weight:bold;margin-bottom:8px">あわせて気になった点</div>
+      <div style="color:#d5372e;font-weight:bold;font-size:15px">{{seoGap}}</div>
+      <div style="margin-top:8px;font-size:13px;color:#555555">{{seoOpportunity}}</div>
+    </div>
+
+    <p>「どこがクリックされているか」に加えて「<span style="font-weight:bold">検索でどう見られているか</span>」まで
+    ひとつの画面で見えると、改善の優先順位がつけやすくなります。</p>
+
+    <p>WEBRISはヒートマップとSEO分析を同じ画面で確認でき、AIが改善点を自動で洗い出します。</p>
 
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px auto">
       <tr><td style="background:#1d1d1f;border-radius:8px">
@@ -209,14 +264,19 @@ export const HTML_SNIPPETS: { label: string; hint: string; code: string }[] = [
   {
     label: "ヘッダー",
     hint: "ブランドカラーの帯にロゴを置く（logo.png が必要）",
-    code: `  <div style="background:#0071e3;padding:18px;text-align:center">
-    <img src="${IMAGE_BASE}/logo.png" alt="WEBRIS" height="32" style="display:block;margin:0 auto;border:0">
+    code: `  <div style="background:#ffffff;padding:20px;text-align:center;border-bottom:1px solid #e5e5e7">
+    <img src="${IMAGE_BASE}/logo_01.png" alt="WEBRIS" width="175" height="32" style="display:block;margin:0 auto;border:0">
   </div>`,
   },
   {
-    label: "ヒーロー画像",
-    hint: "横幅いっぱいのバナー（hero.png が必要・推奨1200px幅）",
-    code: `  <img src="${IMAGE_BASE}/hero.png" alt="" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0">`,
+    label: "SEO分析バナー",
+    hint: "hero_01 — AIがWebサイトを分析しSEOの成長をサポート",
+    code: `  <img src="${IMAGE_BASE}/hero_01.jpg" alt="AIが、あなたのWebサイトを分析しSEOの成長をサポートします" width="600" height="400" style="display:block;width:100%;max-width:600px;height:auto;border:0">`,
+  },
+  {
+    label: "ヒートマップバナー",
+    hint: "hero_02 — ヒートマップでWebサイトの改善に活かす",
+    code: `  <img src="${IMAGE_BASE}/hero_02.jpg" alt="ヒートマップ機能で、ユーザーがどこを見てどこをクリックしているかをひと目で把握できます" width="600" height="400" style="display:block;width:100%;max-width:600px;height:auto;border:0">`,
   },
   {
     label: "見出し",

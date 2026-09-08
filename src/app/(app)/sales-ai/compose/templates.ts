@@ -34,8 +34,16 @@ export const PRESETS = [
       "突然のご連絡失礼いたします。株式会社LEVANの{{sender}}と申します。\n\n" +
       "貴社サイト（{{website}}）を拝見し、{{tools}}をお使いなのを確認しました。\n" +
       "一方で「{{seoGap}}」という点があり、{{seoOpportunity}}\n\n" +
-      "計測環境が整っているぶん、「次に何を直すべきか」まで分かると運用が楽になるはずです。\n" +
-      "弊社のAI SEOツール「WEBRIS」は、そこをAIが自動で洗い出します。無料で貴社サイトを分析できます。\n\n" +
+      "計測環境が整っているぶん、「次に何を直すべきか」まで分かると運用が楽になるはずです。\n\n" +
+      "弊社のAI SEOツール「WEBRIS」は、SEO分析で現状を可視化し、競合サイトとの差を見つけ、\n" +
+      "改善提案までAIが自動で行います。\n\n" +
+      "またヒートマップ機能では、訪問者がどこを見てどこをクリックしているかを把握できます。\n" +
+      "　・クリック数 — どこがよくクリックされているか\n" +
+      "　・スクロール記録 — どこまで読まれているかを確認\n" +
+      "　・平均スクロール深度 — ユーザーの閲覧傾向を分析\n" +
+      "　・デバイス別 — PC・スマホの違いもチェック\n\n" +
+      "「検索でどう見られているか」と「サイト上でどう動かれているか」を合わせて見ると、\n" +
+      "直すべき箇所の優先順位がはっきりします。どちらも同じ画面で確認できます。\n\n" +
       "▼ 無料でSEO分析する\n{{webris_url}}\n\n" +
       SIGNATURE,
   },
@@ -134,8 +142,31 @@ export const HTML_PRESETS: MailTemplate[] = [
     <p>{{tools}}をお使いなので計測環境は整っている一方、
     「<span style="font-weight:bold">次に何を直すべきか</span>」の判断は手間がかかる部分かと思います。</p>
 
-    <p>弊社のAI SEOツール「WEBRIS」は、サイトを解析して優先度の高い改善点をAIが自動で洗い出します。
-    貴社サイトをそのまま分析できますので、よろしければお試しください。</p>
+    <p>弊社のAI SEOツール「WEBRIS」は、<strong>SEO分析で現状を可視化</strong>し、
+    <strong>競合サイトとの差</strong>を見つけ、<strong>改善提案</strong>までAIが自動で行います。</p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px auto">
+      <tr><td style="background:#1d1d1f;border-radius:8px">
+        <a href="{{webris_url}}" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:bold;text-decoration:none">無料でSEO分析する</a>
+      </td></tr>
+    </table>
+
+    <hr style="border:none;border-top:1px solid #dddddd;margin:32px 0">
+
+    <p style="font-size:16px;font-weight:bold;margin:0 0 4px">ユーザーの動きも、同じ画面で見えます</p>
+    <p style="margin-top:0">ヒートマップ機能で、訪問者が<strong>どこを見て、どこをクリックしているか</strong>をひと目で把握できます。</p>
+
+    <img src="${IMAGE_BASE}/hero_02.jpg" alt="ヒートマップ機能で、ユーザーがどこを見てどこをクリックしているかをひと目で把握できます" width="552" height="368" style="display:block;width:100%;max-width:552px;height:auto;border:0;margin:20px 0">
+
+    <div style="background:#f5f5f7;padding:18px 20px;margin:20px 0;font-size:13px;line-height:2">
+      <strong>クリック数</strong> — どこがよくクリックされているか<br>
+      <strong>スクロール記録</strong> — どこまで読まれているかを確認<br>
+      <strong>平均スクロール深度</strong> — ユーザーの閲覧傾向を分析<br>
+      <strong>デバイス別</strong> — PC・スマホの違いもチェック
+    </div>
+
+    <p>「検索でどう見られているか」と「サイト上でどう動かれているか」を合わせて見ると、
+    直すべき箇所の優先順位がはっきりします。どちらも同じ画面で確認できます。</p>
 
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px auto">
       <tr><td style="background:#1d1d1f;border-radius:8px">

@@ -84,16 +84,16 @@ model Company {
   revenueRange  String?
 
   // WEBRIS メール管理のリサーチ対象カテゴリ（SEOツール/ヒートマップツール/LLMOツール利用中、広告代理店 等）
-  toolInterest String?
+  toolInterest    String?
   // 国税庁法人番号（gBizINFO由来）。実在法人であることの裏付け＋重複防止。
-  corporateNumber String? @unique
+  corporateNumber String?   @unique
   // サイト上で公開されている法人の問い合わせ先。特定電子メール法の
   // 「公開されている法人アドレス」例外に該当するもののみを保存する。
-  publicEmail  String?
+  publicEmail     String?
   // サイト解析で検出したツール（Hotjar, GTM 等）とSEO上の不足点
-  detectedTools Json?
-  seoGaps       Json?
-  lastAuditedAt DateTime?
+  detectedTools   Json?
+  seoGaps         Json?
+  lastAuditedAt   DateTime?
 
   postalCode String?
   address    String? // 番地以降の詳細住所
@@ -118,13 +118,14 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  lead       Lead?
-  customer   Customer?
-  contacts   Contact[]
-  activities Activity[]
-  tasks      Task[]
-  tags       CompanyTag[]
-  files      FileAsset[]
+  lead             Lead?
+  customer         Customer?
+  outreachMessages OutreachMessage[]
+  contacts         Contact[]
+  activities       Activity[]
+  tasks            Task[]
+  tags             CompanyTag[]
+  files            FileAsset[]
 }
 
 // ---------------------------------------------------------------------------
@@ -317,9 +318,17 @@ model Lead {
 }
 
 model OutreachMessage {
-  id     String @id @default(cuid())
-  leadId String
-  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  id String @id @default(cuid())
+
+  // 宛先の出どころは3通りある。営業パイプライン上のリード、CRM上の企業
+  // （既存顧客を含む）、そして手入力アドレス。リードに紐づかない送信も
+  // 記録・追跡できるよう leadId は任意にしてある。
+  leadId    String?
+  lead      Lead?    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  // 実際に送った先。手入力宛先はここにしか残らないので、監査上も必須。
+  toEmail   String?
 
   direction OutreachDirection
   subject   String?
@@ -342,6 +351,7 @@ model OutreachMessage {
   createdAt DateTime @default(now())
 
   @@index([leadId])
+  @@index([companyId])
 }
 
 // ---------------------------------------------------------------------------

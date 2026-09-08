@@ -5,6 +5,7 @@ import { ApprovalStatus, LeadStatus, OutreachDirection, ReplyCategory } from "@/
 import { LEAD_STATUS_LABEL, REPLY_CATEGORY_LABEL } from "@/lib/labels";
 import { isEmailConfigured, sendEmail, textToHtml } from "@/lib/email";
 import { fillTemplateStrict, type TemplateContext } from "@/lib/mailTemplate";
+import { parseRecipientId, type Recipient } from "@/lib/recipients";
 
 const AGENT_NAME = "sales_agent";
 
@@ -88,10 +89,14 @@ export async function approveAndSendMessage(messageId: string, approvedById: str
     },
   });
 
-  await prisma.lead.update({
-    where: { id: message.leadId },
-    data: { status: LeadStatus.CONTACTED, lastContactedAt: new Date() },
-  });
+  // leadId は任意になった（CRM企業・手入力宛の送信があるため）。リードに
+  // 紐づく承認送信のときだけパイプラインを進める。
+  if (message.leadId) {
+    await prisma.lead.update({
+      where: { id: message.leadId },
+      data: { status: LeadStatus.CONTACTED, lastContactedAt: new Date() },
+    });
+  }
 
   return message;
 }
@@ -104,74 +109,47 @@ function trackingParts(messageId: string) {
   };
 }
 
-function contextOf(
-  company: { name: string; website: string; detectedTools: unknown; seoGaps: unknown },
-  sender: string,
-  webrisUrl?: string,
-): TemplateContext {
-  return {
-    company: company.name,
-    website: company.website,
-    tools: Array.isArray(company.detectedTools) ? (company.detectedTools as string[]) : [],
-    seoGaps: Array.isArray(company.seoGaps) ? (company.seoGaps as string[]) : [],
-    sender,
-    webrisUrl,
-  };
-}
-
 export type BulkSendOutcome = {
   total: number;
   delivered: number;
   recorded: number;
-  skippedNoAddress: { company: string }[];
   failed: { company: string; reason: string }[];
   emailConfigured: boolean;
 };
 
 /**
- * WEBRIS メール管理 — 一斉配信。人間が対象企業とテンプレートを選び、明示的に
- * 「送信」を押したときだけ動く（Level 1 の変形：下書きではなく実行そのものを
- * 人間が承認するボタン操作）。承認フローをスキップする代わりに、送信者本人の
- * userId を承認者として記録し、AuditLogにも残す。
+ * WEBRIS メール管理 — 一斉配信。人間が宛先とテンプレートを選び、明示的に
+ * 「送信」を押したときだけ動く。送信者本人を承認者として記録し、AuditLogにも残す。
  *
- * 宛先は Company.publicEmail（サイト上で公開されている法人の問い合わせ先）
- * または登録済み Contact のアドレスのみ。アドレスが無い企業はスキップし、
- * 呼び出し元にその旨を返す（黙って送信済み扱いにはしない）。
+ * 宛先はリード・CRM上の企業・WEBRIS契約者・手入力のいずれでもよい。どの経路
+ * でも OutreachMessage を1件作り、開封/クリックを追跡できる状態にする。
  */
 export async function sendBulkOutreach(params: {
-  leadIds: string[];
+  recipients: Recipient[];
   subjectTemplate: string;
   bodyTemplate: string;
   approvedById: string;
-  /** 差出人名。{{sender}} に差し込まれる。 */
   senderName: string;
 }): Promise<BulkSendOutcome> {
-  const leads = await prisma.lead.findMany({
-    where: { id: { in: params.leadIds } },
-    include: { company: { include: { contacts: { where: { email: { not: null } }, take: 1 } } } },
-  });
-
   const outcome: BulkSendOutcome = {
-    total: leads.length,
+    total: params.recipients.length,
     delivered: 0,
     recorded: 0,
-    skippedNoAddress: [],
     failed: [],
     emailConfigured: isEmailConfigured(),
   };
 
-  for (const lead of leads) {
-    const recipient = lead.company.publicEmail ?? lead.company.contacts[0]?.email ?? null;
-    if (!recipient) {
-      outcome.skippedNoAddress.push({ company: lead.company.name });
-      continue;
-    }
+  for (const r of params.recipients) {
+    const parsed = parseRecipientId(r.id);
+    const leadId: string | null = parsed?.kind === "lead" ? parsed.key : null;
+    const companyId = parsed?.kind === "company" ? parsed.key : null;
 
-    // 先にメッセージIDを採番する。{{webris_url}} を計測リンクにするには
-    // IDが必要で、そのIDは行を作らないと決まらないため。
+    // 先にIDを採番する。{{webris_url}} を計測リンクにするにはIDが要る。
     const message = await prisma.outreachMessage.create({
       data: {
-        leadId: lead.id,
+        leadId,
+        companyId,
+        toEmail: r.email,
         direction: OutreachDirection.OUTBOUND,
         subject: params.subjectTemplate,
         body: params.bodyTemplate,
@@ -181,7 +159,14 @@ export async function sendBulkOutreach(params: {
     });
 
     const { link, pixel } = trackingParts(message.id);
-    const ctx = contextOf(lead.company, params.senderName, link);
+    const ctx: TemplateContext = {
+      company: r.name,
+      website: r.website,
+      tools: r.tools,
+      seoGaps: r.seoGaps,
+      sender: params.senderName,
+      webrisUrl: link,
+    };
 
     let subject: string;
     let bodyDraft: string;
@@ -190,26 +175,24 @@ export async function sendBulkOutreach(params: {
       bodyDraft = fillTemplateStrict(params.bodyTemplate, ctx);
     } catch (e) {
       // 未対応の差込変数が残っている = そのまま送ると相手に {{...}} が届く。
-      // 送らずに行を消し、理由を呼び出し元へ返す。
       await prisma.outreachMessage.delete({ where: { id: message.id } });
       outcome.failed.push({
-        company: lead.company.name,
+        company: r.name,
         reason: e instanceof Error ? e.message : "テンプレートの差込に失敗しました",
       });
       continue;
     }
 
-    // テンプレートが {{webris_url}} を含まない場合だけ、計測リンクを末尾に足す
     const text = bodyDraft.includes(link) ? bodyDraft : `${bodyDraft}\n\n詳しくはこちら: ${link}`;
     const html = `${textToHtml(text)}${pixel}`;
 
-    const result = await sendEmail({ to: recipient, subject, text, html });
+    const result = await sendEmail({ to: r.email, subject, text, html });
 
     if (result.delivered) {
       outcome.delivered++;
     } else if (outcome.emailConfigured) {
       // 配信基盤は設定済みなのに失敗した = 本物のエラー。送信済みにしない。
-      outcome.failed.push({ company: lead.company.name, reason: result.reason });
+      outcome.failed.push({ company: r.name, reason: result.reason });
       await prisma.outreachMessage.delete({ where: { id: message.id } });
       continue;
     }
@@ -220,10 +203,15 @@ export async function sendBulkOutreach(params: {
     });
     outcome.recorded++;
 
-    await prisma.lead.update({
-      where: { id: lead.id },
-      data: { status: LeadStatus.CONTACTED, lastContactedAt: new Date() },
-    });
+    if (leadId) {
+      await prisma.lead.update({
+        where: { id: leadId },
+        data: { status: LeadStatus.CONTACTED, lastContactedAt: new Date() },
+      });
+    }
+    if (companyId) {
+      await prisma.company.update({ where: { id: companyId }, data: { lastContactAt: new Date() } });
+    }
   }
 
   return outcome;
@@ -238,24 +226,24 @@ export async function sendTestEmail(params: {
   bodyTemplate: string;
   to: string;
   senderName: string;
-  /** 指定するとその企業の実データで差込む。未指定ならサンプル値。 */
-  sampleLeadId?: string;
+  /** 指定するとその宛先の実データで差込む。未指定ならサンプル値。 */
+  sample?: Pick<Recipient, "name" | "website" | "tools" | "seoGaps">;
 }) {
-  let ctx: TemplateContext = {
-    company: "サンプル株式会社",
-    website: "https://example.co.jp",
-    tools: ["Google Tag Manager", "Microsoft Clarity"],
-    seoGaps: ["meta descriptionが無い", "構造化データ(JSON-LD)が無い"],
-    sender: params.senderName,
-  };
-
-  if (params.sampleLeadId) {
-    const lead = await prisma.lead.findUnique({
-      where: { id: params.sampleLeadId },
-      include: { company: true },
-    });
-    if (lead) ctx = contextOf(lead.company, params.senderName);
-  }
+  const ctx: TemplateContext = params.sample
+    ? {
+        company: params.sample.name,
+        website: params.sample.website,
+        tools: params.sample.tools,
+        seoGaps: params.sample.seoGaps,
+        sender: params.senderName,
+      }
+    : {
+        company: "サンプル株式会社",
+        website: "https://example.co.jp",
+        tools: ["Google Tag Manager", "Microsoft Clarity"],
+        seoGaps: ["meta descriptionが無い", "構造化データ(JSON-LD)が無い"],
+        sender: params.senderName,
+      };
 
   // テスト送信でも本番と同じ検査を通す。ここで弾かれる文面は本番でも送れない。
   const subject = `[テスト] ${fillTemplateStrict(params.subjectTemplate, ctx)}`;

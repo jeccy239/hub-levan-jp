@@ -2,156 +2,97 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { draftTemplateAction, sendBulkOutreachAction, sendTestEmailAction } from "../actions";
+import { PRESETS, VARIABLES } from "./templates";
+import { fillPreview, unresolvedVariables } from "./preview";
+import { parseManualEmails } from "@/lib/parseEmails";
 
-export type Candidate = {
-  leadId: string;
-  companyName: string;
+export type Recipient = {
+  id: string;
+  kind: "lead" | "company" | "webris" | "manual";
+  name: string;
+  email: string;
+  meta: string | null;
   website: string;
-  category: string | null;
-  potentialScore: number | null;
-  recipient: string | null;
   tools: string[];
   seoGaps: string[];
   alreadyContacted: boolean;
 };
 
-const VARIABLES = [
-  { token: "{{company}}", label: "会社名" },
-  { token: "{{website}}", label: "相手サイトURL" },
-  { token: "{{tools}}", label: "導入済みツール" },
-  { token: "{{seoGap}}", label: "SEO上の不足" },
-  { token: "{{seoOpportunity}}", label: "改善提案文" },
-  { token: "{{sender}}", label: "差出人名" },
-  { token: "{{webris_url}}", label: "WEBRIS計測リンク" },
-  { token: "{{company_address}}", label: "LEVANの住所（法定表示）" },
+const KIND_TABS = [
+  { kind: "lead" as const, label: "見込み客" },
+  { kind: "company" as const, label: "既存顧客・CRM" },
+  { kind: "webris" as const, label: "WEBRIS契約者" },
 ];
 
-const WEBRIS_PRESET_BODY =
-  "{{company}} ご担当者様\n\n" +
-  "突然のご連絡失礼いたします。株式会社LEVANの{{sender}}と申します。\n\n" +
-  "貴社サイト（{{website}}）を拝見し、{{tools}}などの計測環境を活用されていることを確認しました。\n\n" +
-  "一方でSEOの観点で見ると「{{seoGap}}」という点があり、{{seoOpportunity}}\n\n" +
-  "せっかく計測環境が整っているので、「データを見る」だけでなく「次に何を改善すべきか」まで分かると、" +
-  "運用がもっと楽になるのではと思いご連絡しました。\n\n" +
-  "弊社が開発しているAI SEOツール「WEBRIS」は、サイトのSEO状態をAIが分析し、" +
-  "優先して取り組むべき改善点を自動で提示します。無料プランで貴社サイトをそのまま分析できます。\n\n" +
-  "▼ WEBRISを無料で試す\n{{webris_url}}\n\n" +
-  "「自社サイトのどこが改善できるのか」を見るだけでも構いません。\n\n" +
-  "――――――――――\n{{company_address}}\nWEBRIS\n{{sender}}\n\n" +
-  "配信停止をご希望の場合は、本メールにご返信いただければ以後お送りいたしません。";
-
-const PRESETS = [
-  {
-    name: "WEBRIS無料プラン訴求",
-    subject: "{{company}}様のSEOで1点気になった点があります",
-    body: WEBRIS_PRESET_BODY,
-  },
-  {
-    name: "短縮版（推奨）",
-    subject: "{{company}}様のSEOで1点気になった点が",
-    body:
-      "{{company}} ご担当者様\n\n" +
-      "突然のご連絡失礼いたします。株式会社LEVANの{{sender}}と申します。\n\n" +
-      "貴社サイト（{{website}}）を拝見し、{{tools}}をお使いなのを確認しました。\n" +
-      "一方で「{{seoGap}}」という点があり、{{seoOpportunity}}\n\n" +
-      "計測環境が整っているぶん、「次に何を直すべきか」まで分かると運用が楽になるはずです。\n" +
-      "弊社のAI SEOツール「WEBRIS」は、そこをAIが自動で洗い出します。無料で貴社サイトを分析できます。\n\n" +
-      "▼ 無料で試す\n{{webris_url}}\n\n" +
-      "――――――――――\n{{company_address}}\nWEBRIS {{sender}}\n" +
-      "配信停止をご希望の場合は本メールにご返信ください。",
-  },
-  {
-    name: "広告代理店向け（協業提案）",
-    subject: "{{company}}様へ｜クライアント様向けAI SEOツールのご案内",
-    body:
-      "{{company}} ご担当者様\n\n" +
-      "株式会社LEVANの{{sender}}と申します。貴社の支援領域を拝見しご連絡いたしました。\n\n" +
-      "弊社はAI SEOツール「WEBRIS」を開発しており、代理店様がクライアント様のサイト診断・" +
-      "改善提案を行う際のツールとしてご利用いただくケースが増えています。\n\n" +
-      "▼ 無料で試す\n{{webris_url}}\n\n" +
-      "――――――――――\n{{company_address}}\nWEBRIS {{sender}}\n" +
-      "配信停止をご希望の場合は本メールにご返信ください。",
-  },
-];
-
-const CATEGORIES = ["SEOツール利用企業", "ヒートマップツール利用企業", "LLMOツール利用企業", "広告代理店"];
-
-const OPPORTUNITY_BY_GAP: Record<string, string> = {
-  "meta descriptionが無い": "検索結果に出る説明文が自動生成に任されている状態で、クリック率を取りこぼしている可能性があります。",
-  "構造化データ(JSON-LD)が無い": "検索エンジンや生成AIにページ内容が構造として伝わっておらず、AI検索での引用機会を逃している可能性があります。",
-  "h1見出しが無い": "ページの主題が検索エンジンに伝わりにくく、評価が分散している可能性があります。",
-  "titleタグが短い（15文字未満）": "titleに検索キーワードを含める余地が残っており、上位表示の機会を活かしきれていない可能性があります。",
-  "titleタグが無い": "titleが未設定のため、検索結果での表示が不安定になっている可能性があります。",
-  "canonicalタグが無い": "URLの重複がある場合に評価が分散し、本来の評価を受け取れていない可能性があります。",
-  "OGP設定が無い": "SNSでシェアされた際に情報が正しく表示されず、流入機会を損ねている可能性があります。",
-  "オウンドメディア/ブログ導線が見当たらない": "継続的に検索流入を集める入り口が不足しており、指名検索以外の接点が限られている可能性があります。",
+const KIND_BADGE: Record<string, string> = {
+  lead: "bg-[var(--accent-tint)] text-[var(--accent-strong)]",
+  company: "bg-[var(--surface-2)] text-[var(--text-dim)]",
+  webris: "bg-[var(--gold-tint)] text-[var(--gold)]",
 };
 
-/** サーバ側 src/lib/mailTemplate.ts と同じ規則でプレビューする。 */
-function fill(template: string, c: Candidate | null, sender: string) {
-  const tools = c && c.tools.length > 0 ? c.tools.join("・") : "アクセス解析ツール";
-  const gaps = c?.seoGaps ?? [];
-  const seoGap = gaps.length > 0 ? gaps.slice(0, 2).join("・") : "コンテンツ更新頻度";
-  const primary = gaps.find((g) => OPPORTUNITY_BY_GAP[g]);
-  const opportunity = primary
-    ? OPPORTUNITY_BY_GAP[primary]
-    : gaps.length > 0
-      ? `${gaps[0]}という点で改善の余地がありそうです。`
-      : "サイト全体の構成を見直すことで、検索流入を伸ばせる可能性があります。";
-
-  return template
-    .replaceAll("{{company}}", c?.companyName ?? "サンプル株式会社")
-    .replaceAll("{{website}}", c?.website ?? "https://example.co.jp")
-    .replaceAll("{{tools}}", tools)
-    .replaceAll("{{seoGap}}", seoGap)
-    .replaceAll("{{seoOpportunity}}", opportunity)
-    .replaceAll("{{sender}}", sender)
-    .replaceAll("{{webris_url}}", "https://webris.levan.jp")
-    .replaceAll("{{company_address}}", "株式会社LEVAN\n〒454-0867 愛知県名古屋市中川区広田町2丁目71番地");
-}
-
-function unresolved(filled: string): string[] {
-  return [...new Set(filled.match(/\{\{[^}\n]{1,40}\}\}/g) ?? [])];
-}
-
 export default function ComposeForm({
-  candidates,
+  recipients,
   emailConfigured,
   senderName,
+  unreachableCount,
+  webrisError,
 }: {
-  candidates: Candidate[];
+  recipients: Recipient[];
   emailConfigured: boolean;
   senderName: string;
+  unreachableCount: number;
+  webrisError: string | null;
 }) {
   const [subject, setSubject] = useState(PRESETS[0].subject);
   const [body, setBody] = useState(PRESETS[0].body);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [category, setCategory] = useState<string | null>(null);
-  const [excludeContacted, setExcludeContacted] = useState(true);
+  const [tab, setTab] = useState<"lead" | "company" | "webris" | "manual">("lead");
+  const [query, setQuery] = useState("");
+  const [manualEmails, setManualEmails] = useState("");
   const [aiInstruction, setAiInstruction] = useState("");
   const [status, setStatus] = useState<{ kind: "ok" | "error" | "info"; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
-  const visible = useMemo(
-    () =>
-      candidates.filter((c) => {
-        if (category && c.category !== category) return false;
-        if (excludeContacted && c.alreadyContacted) return false;
-        return true;
-      }),
-    [candidates, category, excludeContacted],
-  );
+  const counts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of recipients) m.set(r.kind, (m.get(r.kind) ?? 0) + 1);
+    return m;
+  }, [recipients]);
 
-  const sendable = visible.filter((c) => c.recipient);
-  const selectedList = candidates.filter((c) => selected.has(c.leadId));
-  // プレビューは選択中の1社目、無ければ送信可能な先頭で
-  const previewTarget = selectedList[0] ?? sendable[0] ?? null;
+  const visible = useMemo(() => {
+    if (tab === "manual") return [];
+    const q = query.trim().toLowerCase();
+    return recipients.filter((r) => {
+      if (r.kind !== tab) return false;
+      if (q && !r.name.toLowerCase().includes(q) && !r.email.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [recipients, tab, query]);
 
-  const filledSubject = fill(subject, previewTarget, senderName);
-  const filledBody = fill(body, previewTarget, senderName);
-  // 未対応の差込変数が残った文面はサーバ側でも送信を拒否される。押す前に見せる。
-  const badVars = [...new Set([...unresolved(filledSubject), ...unresolved(filledBody)])];
+  const selectedList = useMemo(() => recipients.filter((r) => selected.has(r.id)), [recipients, selected]);
+
+  const manualParsed = useMemo(() => parseManualEmails(manualEmails), [manualEmails]);
+
+  const totalToSend = selectedList.length + manualParsed.valid.length;
+  const previewTarget = selectedList[0] ?? recipients.find((r) => r.kind === tab) ?? recipients[0] ?? null;
+
+  const filledSubject = fillPreview(subject, previewTarget, senderName);
+  const filledBody = fillPreview(body, previewTarget, senderName);
+  const badVars = [...new Set([...unresolvedVariables(filledSubject), ...unresolvedVariables(filledBody)])];
+
+  // サイト解析データが無い宛先に {{tools}}/{{seoGap}} を使うと、実測ではなく
+  // 一般的な言い回しに置き換わる。黙って送ると「調べた風」の文面になるので警告する。
+  const usesAuditVars = /\{\{(tools|seoGap|seoOpportunity|website)\}\}/.test(subject + body);
+  const noAuditData = selectedList.filter((r) => r.tools.length === 0 && r.seoGaps.length === 0).length;
+  const auditWarning = usesAuditVars ? noAuditData + manualParsed.valid.length : 0;
+
+  // WEBRIS契約者に「無料で試す」を送るのは明確な取り違えなので個別に警告する
+  const webrisCustomersSelected = selectedList.filter((r) => r.kind === "webris").length;
+  const webrisPitchToCustomer =
+    /\{\{webris_url\}\}|無料プラン|無料で試す/.test(body) && webrisCustomersSelected > 0
+      ? webrisCustomersSelected
+      : 0;
 
   function insertVariable(token: string) {
     const el = bodyRef.current;
@@ -165,10 +106,13 @@ export default function ComposeForm({
     });
   }
 
-  function applyPreset(p: (typeof PRESETS)[number]) {
-    setSubject(p.subject);
-    setBody(p.body);
-    setStatus({ kind: "info", text: `テンプレート「${p.name}」を読み込みました。` });
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
   }
 
   function generateWithAi() {
@@ -186,7 +130,17 @@ export default function ComposeForm({
     const fd = new FormData();
     fd.set("subject", subject);
     fd.set("body", body);
-    if (previewTarget) fd.set("sampleLeadId", previewTarget.leadId);
+    if (previewTarget) {
+      fd.set(
+        "sample",
+        JSON.stringify({
+          name: previewTarget.name,
+          website: previewTarget.website,
+          tools: previewTarget.tools,
+          seoGaps: previewTarget.seoGaps,
+        }),
+      );
+    }
     startTransition(async () => {
       const r = await sendTestEmailAction(fd);
       setStatus(
@@ -199,33 +153,38 @@ export default function ComposeForm({
 
   function bulkSend() {
     setStatus(null);
-    if (selected.size === 0) {
-      setStatus({ kind: "error", text: "送信先を1社以上選択してください。" });
+    if (totalToSend === 0) {
+      setStatus({ kind: "error", text: "送信先を1件以上指定してください。" });
       return;
     }
     if (badVars.length > 0) {
       setStatus({ kind: "error", text: `未対応の差込変数があります: ${badVars.join("、")}` });
       return;
     }
-    if (!confirm(`${selected.size}社に一斉送信します。取り消しはできません。よろしいですか？`)) return;
+    if (manualParsed.invalid.length > 0) {
+      setStatus({ kind: "error", text: `手入力に不正なアドレスがあります: ${manualParsed.invalid.join("、")}` });
+      return;
+    }
+    if (!confirm(`${totalToSend}件に送信します。取り消しはできません。よろしいですか？`)) return;
 
     const fd = new FormData();
     fd.set("subject", subject);
     fd.set("body", body);
-    for (const id of selected) fd.append("leadIds", id);
+    fd.set("manualEmails", manualEmails);
+    for (const r of selectedList) fd.append("recipientIds", r.id);
 
     startTransition(async () => {
       try {
         const r = await sendBulkOutreachAction(fd);
         const parts = [
           r.emailConfigured
-            ? `${r.delivered}社に送信完了`
-            : `${r.recorded}社を記録（配信基盤が未設定のため実際には届いていません）`,
+            ? `${r.delivered}件に送信完了`
+            : `${r.recorded}件を記録（配信基盤が未設定のため実際には届いていません）`,
         ];
-        if (r.skippedNoAddress.length > 0) parts.push(`アドレス無し ${r.skippedNoAddress.length}社をスキップ`);
-        if (r.failed.length > 0) parts.push(`失敗 ${r.failed.length}社（${r.failed[0].reason}）`);
+        if (r.failed.length > 0) parts.push(`失敗 ${r.failed.length}件（${r.failed[0].reason}）`);
         setStatus({ kind: r.failed.length > 0 ? "error" : "ok", text: parts.join(" / ") });
         setSelected(new Set());
+        setManualEmails("");
       } catch (e) {
         setStatus({ kind: "error", text: e instanceof Error ? e.message : "送信に失敗しました。" });
       }
@@ -243,19 +202,28 @@ export default function ComposeForm({
         <div className="rounded-2xl border border-[var(--gold)]/30 bg-[var(--gold-tint)] px-5 py-3.5 text-sm">
           <span className="font-medium text-[var(--text)]">配信基盤が未設定です。</span>{" "}
           <span className="text-[var(--text-dim)]">
-            現在「送信」を押してもDBに記録されるだけで、実際のメールは届きません（RESEND_API_KEY / MAIL_FROM）。
+            「送信」を押してもDBに記録されるだけで、実際のメールは届きません（RESEND_API_KEY / MAIL_FROM）。
           </span>
         </div>
       )}
 
       <div className="grid lg:grid-cols-[1fr_400px] gap-6 items-start">
-        {/* ---------- 左: エディタ ---------- */}
+        {/* ---------- 左: エディタ + 宛先 ---------- */}
         <div className="space-y-4">
           <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-sm p-5 space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium text-[var(--text-dim)]">テンプレート</span>
               {PRESETS.map((p) => (
-                <button key={p.name} type="button" onClick={() => applyPreset(p)} className={chip(false)}>
+                <button
+                  key={p.name}
+                  type="button"
+                  onClick={() => {
+                    setSubject(p.subject);
+                    setBody(p.body);
+                    setStatus({ kind: "info", text: `テンプレート「${p.name}」を読み込みました。` });
+                  }}
+                  className={chip(false)}
+                >
                   {p.name}
                 </button>
               ))}
@@ -294,11 +262,11 @@ export default function ComposeForm({
                 ref={bodyRef}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                rows={16}
+                rows={15}
                 className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm bg-[var(--surface)] text-[var(--text)] leading-relaxed focus:outline-none focus:border-[var(--accent)]"
               />
               <p className="mt-1.5 text-[11px] text-[var(--text-dim)]">
-                特定電子メール法により、送信者情報と配信停止方法の記載が必要です。テンプレートには既に含まれています。
+                特定電子メール法により、送信者情報と配信停止方法の記載が必要です。テンプレートには含まれています。
               </p>
             </div>
 
@@ -322,102 +290,119 @@ export default function ComposeForm({
             </div>
           </section>
 
-          {/* ---------- 送信先 ---------- */}
+          {/* ---------- 宛先 ---------- */}
           <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-sm">
             <div className="p-5 pb-3 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold text-[var(--text)]">
                   送信先
-                  <span className="ml-2 font-normal text-[var(--text-dim)]">
-                    {selected.size}社選択中 / 送信可能{sendable.length}社
-                  </span>
+                  <span className="ml-2 font-normal text-[var(--text-dim)]">{totalToSend}件を送信</span>
                 </h2>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelected(new Set(sendable.map((c) => c.leadId)))}
-                    className="text-xs font-medium text-[var(--accent)]"
-                  >
-                    送信可能を全選択
-                  </button>
-                  <span className="text-[var(--line)]">|</span>
+                {selected.size > 0 && (
                   <button
                     type="button"
                     onClick={() => setSelected(new Set())}
-                    className="text-xs font-medium text-[var(--text-dim)]"
+                    className="text-xs font-medium text-[var(--text-dim)] hover:text-[var(--text)]"
                   >
-                    解除
+                    選択をすべて解除
                   </button>
-                </div>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={() => setCategory(null)} className={chip(category === null)}>
-                  すべて
-                </button>
-                {CATEGORIES.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setCategory(category === c ? null : c)}
-                    className={chip(category === c)}
-                  >
-                    {c}
+                {KIND_TABS.map((t) => (
+                  <button key={t.kind} type="button" onClick={() => setTab(t.kind)} className={chip(tab === t.kind)}>
+                    {t.label} {counts.get(t.kind) ?? 0}
                   </button>
                 ))}
-                <button
-                  type="button"
-                  onClick={() => setExcludeContacted((v) => !v)}
-                  className={`${chip(excludeContacted)} ml-auto`}
-                >
-                  {excludeContacted ? "✓ " : ""}送信済みを除く
+                <button type="button" onClick={() => setTab("manual")} className={chip(tab === "manual")}>
+                  手入力{manualParsed.valid.length > 0 ? ` ${manualParsed.valid.length}` : ""}
                 </button>
+                {tab !== "manual" && (
+                  <>
+                    <input
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="会社名・アドレスで絞り込み"
+                      className="ml-auto text-sm rounded-full border border-[var(--line)] px-4 py-1.5 bg-[var(--surface)] text-[var(--text)] w-52 focus:outline-none focus:border-[var(--accent)]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setSelected((prev) => new Set([...prev, ...visible.map((r) => r.id)]))}
+                      className="text-xs font-medium text-[var(--accent)] whitespace-nowrap"
+                    >
+                      表示中を全選択
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
-            <div className="max-h-80 overflow-y-auto border-t border-[var(--line)] divide-y divide-[var(--line)]">
-              {visible.map((c) => (
-                <label
-                  key={c.leadId}
-                  className={`flex items-center gap-3 px-5 py-2.5 text-sm ${
-                    c.recipient ? "cursor-pointer hover:bg-[var(--surface-2)]/60" : "opacity-45 cursor-not-allowed"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    disabled={!c.recipient}
-                    checked={selected.has(c.leadId)}
-                    onChange={() =>
-                      setSelected((prev) => {
-                        const n = new Set(prev);
-                        if (n.has(c.leadId)) n.delete(c.leadId);
-                        else n.add(c.leadId);
-                        return n;
-                      })
-                    }
-                  />
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-[var(--text)] truncate">
-                      {c.companyName}
-                      {c.alreadyContacted && (
-                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-[var(--gold-tint)] text-[var(--gold)]">
-                          送信済
-                        </span>
-                      )}
+            {tab === "manual" ? (
+              <div className="px-5 pb-5 pt-3 border-t border-[var(--line)]">
+                <textarea
+                  value={manualEmails}
+                  onChange={(e) => setManualEmails(e.target.value)}
+                  rows={6}
+                  placeholder={"送信したいアドレスを貼り付けてください。\n改行・カンマ・スペース区切り、「名前 <foo@example.com>」形式も可。"}
+                  className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm bg-[var(--surface)] text-[var(--text)] font-mono focus:outline-none focus:border-[var(--accent)]"
+                />
+                <div className="mt-2 space-y-1 text-xs">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-[var(--accent-strong)]">有効 {manualParsed.valid.length}件</span>
+                    {manualParsed.invalid.length > 0 && (
+                      <span className="text-[var(--danger)]">
+                        解釈できない入力 {manualParsed.invalid.length}件: {manualParsed.invalid.slice(0, 3).join("、")}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[var(--text-dim)]">
+                    手入力の宛先には会社データがないため、{"{{company}}"} はドメイン名に、
+                    {"{{tools}}"} や {"{{seoGap}}"} は一般的な言い回しに置き換わります。
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="max-h-72 overflow-y-auto border-t border-[var(--line)] divide-y divide-[var(--line)]">
+                {visible.map((r) => (
+                  <label
+                    key={r.id}
+                    className="flex items-center gap-3 px-5 py-2.5 text-sm cursor-pointer hover:bg-[var(--surface-2)]/60"
+                  >
+                    <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleOne(r.id)} />
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[var(--text)] truncate">
+                        {r.name}
+                        {r.alreadyContacted && (
+                          <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-[var(--gold-tint)] text-[var(--gold)]">
+                            送信済
+                          </span>
+                        )}
+                      </span>
+                      <span className="block text-[11px] text-[var(--text-dim)] truncate">{r.email}</span>
                     </span>
-                    <span className="block text-[11px] text-[var(--text-dim)] truncate">
-                      {c.recipient ?? "公開アドレス無し"}
-                    </span>
-                  </span>
-                  <span className="text-[11px] text-[var(--text-dim)] tabular-nums shrink-0">{c.potentialScore ?? "—"}</span>
-                </label>
-              ))}
-              {visible.length === 0 && (
-                <p className="px-5 py-8 text-center text-sm text-[var(--text-dim)]">
-                  条件に合う企業がありません。フィルタを変えるか、ダッシュボードでリサーチを実行してください。
-                </p>
-              )}
-            </div>
+                    {r.meta && (
+                      <span className={`text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap ${KIND_BADGE[r.kind]}`}>
+                        {r.meta}
+                      </span>
+                    )}
+                  </label>
+                ))}
+                {visible.length === 0 && (
+                  <p className="px-5 py-8 text-center text-sm text-[var(--text-dim)]">
+                    {webrisError && tab === "webris"
+                      ? webrisError
+                      : "該当する宛先がありません。フィルタを変えるか、ダッシュボードでリサーチを実行してください。"}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {unreachableCount > 0 && (
+              <p className="px-5 py-2.5 border-t border-[var(--line)] text-[11px] text-[var(--text-dim)]">
+                アドレスが取得できず送信対象にできない相手が {unreachableCount} 件あります（問い合わせフォームのみのサイトなど）。
+              </p>
+            )}
           </section>
         </div>
 
@@ -427,13 +412,13 @@ export default function ComposeForm({
             <div className="px-4 py-2.5 border-b border-[var(--line)] bg-[var(--surface-2)]/60">
               <div className="text-xs font-medium text-[var(--text)]">プレビュー</div>
               <div className="text-[11px] text-[var(--text-dim)] mt-0.5 truncate">
-                {previewTarget ? `${previewTarget.companyName} の実データで差込` : "対象未選択（サンプル値で表示）"}
+                {previewTarget ? `${previewTarget.name} の実データで差込` : "対象未選択（サンプル値で表示）"}
               </div>
             </div>
             <div className="p-4">
               <div className="text-[11px] text-[var(--text-dim)]">件名</div>
               <div className="text-sm font-medium text-[var(--text)] mt-0.5">{filledSubject}</div>
-              <div className="mt-3 pt-3 border-t border-[var(--line)] text-[13px] leading-relaxed whitespace-pre-wrap text-[var(--text-dim)] max-h-[420px] overflow-y-auto">
+              <div className="mt-3 pt-3 border-t border-[var(--line)] text-[13px] leading-relaxed whitespace-pre-wrap text-[var(--text-dim)] max-h-[380px] overflow-y-auto">
                 {filledBody}
               </div>
             </div>
@@ -447,6 +432,23 @@ export default function ComposeForm({
                 このまま送ると相手にそのままの文字列が届くため、送信をブロックしています。
               </div>
             )}
+
+            {webrisPitchToCustomer > 0 && (
+              <div className="rounded-xl bg-[var(--danger-tint)] px-3.5 py-2.5 text-xs text-[var(--danger)] leading-relaxed">
+                <span className="font-medium">WEBRIS契約者 {webrisPitchToCustomer}件が宛先に入っています。</span>
+                <br />
+                本文がWEBRISの新規登録を勧める内容です。既に契約中の相手に送ると不自然になります。
+              </div>
+            )}
+
+            {auditWarning > 0 && (
+              <div className="rounded-xl bg-[var(--gold-tint)] px-3.5 py-2.5 text-xs text-[var(--gold)] leading-relaxed">
+                <span className="font-medium">サイト解析データが無い宛先が {auditWarning} 件あります。</span>
+                <br />
+                {"{{tools}}"} や {"{{seoGap}}"} は一般的な言い回しに置き換わり、実際に調べた内容にはなりません。
+              </div>
+            )}
+
             <button
               type="button"
               onClick={testSend}
@@ -458,10 +460,10 @@ export default function ComposeForm({
             <button
               type="button"
               onClick={bulkSend}
-              disabled={isPending || selected.size === 0 || badVars.length > 0}
+              disabled={isPending || totalToSend === 0 || badVars.length > 0}
               className="w-full text-sm font-medium px-4 py-2.5 rounded-full bg-[var(--accent)] text-white hover:bg-[var(--accent-strong)] transition-colors disabled:opacity-40"
             >
-              {isPending ? "処理中…" : selected.size > 0 ? `${selected.size}社に一斉送信` : "送信先を選択してください"}
+              {isPending ? "処理中…" : totalToSend > 0 ? `${totalToSend}件に送信` : "送信先を選択してください"}
             </button>
 
             {status && (

@@ -2,12 +2,14 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { LeadStatus } from "@/generated/prisma/client";
 import { isEmailConfigured } from "@/lib/email";
+import { requireUser } from "@/lib/authz";
 import ComposeForm from "./ComposeForm";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export default async function ComposePage() {
+  const user = await requireUser();
   const leads = await prisma.lead.findMany({
     where: { status: { in: [LeadStatus.RESEARCHED, LeadStatus.QUALIFIED, LeadStatus.CONTACTED] } },
     include: { company: { include: { contacts: { where: { email: { not: null } }, take: 1 } } } },
@@ -18,6 +20,7 @@ export default async function ComposePage() {
   const candidates = leads.map((l) => ({
     leadId: l.id,
     companyName: l.company.name,
+    website: l.company.website,
     category: l.company.toolInterest,
     potentialScore: l.potentialScore,
     recipient: l.company.publicEmail ?? l.company.contacts[0]?.email ?? null,
@@ -43,7 +46,11 @@ export default async function ComposePage() {
         </Link>
       </header>
 
-      <ComposeForm candidates={candidates} emailConfigured={isEmailConfigured()} />
+      <ComposeForm
+        candidates={candidates}
+        emailConfigured={isEmailConfigured()}
+        senderName={user.name ?? user.email}
+      />
     </div>
   );
 }

@@ -31,7 +31,13 @@ export async function sendTestEmailAction(formData: FormData) {
   const to = String(formData.get("to") ?? "").trim() || user.email;
   const sampleLeadId = String(formData.get("sampleLeadId") ?? "") || undefined;
 
-  return sendTestEmail({ subjectTemplate, bodyTemplate, to, sampleLeadId });
+  return sendTestEmail({
+    subjectTemplate,
+    bodyTemplate,
+    to,
+    sampleLeadId,
+    senderName: user.name ?? user.email,
+  });
 }
 
 export async function draftTemplateAction(instruction: string) {
@@ -49,7 +55,13 @@ export async function sendBulkOutreachAction(formData: FormData) {
     throw new Error("件名・本文・送信先企業をすべて指定してください。");
   }
 
-  const outcome = await sendBulkOutreach({ leadIds, subjectTemplate, bodyTemplate, approvedById: user.id });
+  const outcome = await sendBulkOutreach({
+    leadIds,
+    subjectTemplate,
+    bodyTemplate,
+    approvedById: user.id,
+    senderName: user.name ?? user.email,
+  });
 
   await logAudit({
     userId: user.id,

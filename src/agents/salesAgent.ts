@@ -4,6 +4,7 @@ import { logDecision } from "./decisionLog";
 import { ApprovalStatus, LeadStatus, OutreachDirection, ReplyCategory } from "@/generated/prisma/client";
 import { LEAD_STATUS_LABEL, REPLY_CATEGORY_LABEL } from "@/lib/labels";
 import { isEmailConfigured, sendEmail, textToHtml } from "@/lib/email";
+import { fillTemplateStrict, type TemplateContext } from "@/lib/mailTemplate";
 
 const AGENT_NAME = "sales_agent";
 
@@ -103,29 +104,18 @@ function trackingParts(messageId: string) {
   };
 }
 
-export type TemplateContext = {
-  company: string;
-  tools: string[];
-  seoGaps: string[];
-};
-
-/** テンプレート差込。{{tools}} と {{seoGap}} はサイト実解析の結果を使うため、
- *  「御社はHotjarをお使いですが、meta descriptionが未設定です」のように
- *  実際の観測に基づいた文面になる。 */
-export function fillTemplate(template: string, ctx: TemplateContext) {
-  const tools = ctx.tools.length > 0 ? ctx.tools.join("・") : "アクセス解析ツール";
-  const seoGap = ctx.seoGaps.length > 0 ? ctx.seoGaps.slice(0, 2).join("・") : "コンテンツ更新頻度";
-  return template
-    .replaceAll("{{company}}", ctx.company)
-    .replaceAll("{{tools}}", tools)
-    .replaceAll("{{seoGap}}", seoGap);
-}
-
-function contextOf(company: { name: string; detectedTools: unknown; seoGaps: unknown }): TemplateContext {
+function contextOf(
+  company: { name: string; website: string; detectedTools: unknown; seoGaps: unknown },
+  sender: string,
+  webrisUrl?: string,
+): TemplateContext {
   return {
     company: company.name,
+    website: company.website,
     tools: Array.isArray(company.detectedTools) ? (company.detectedTools as string[]) : [],
     seoGaps: Array.isArray(company.seoGaps) ? (company.seoGaps as string[]) : [],
+    sender,
+    webrisUrl,
   };
 }
 
@@ -153,6 +143,8 @@ export async function sendBulkOutreach(params: {
   subjectTemplate: string;
   bodyTemplate: string;
   approvedById: string;
+  /** 差出人名。{{sender}} に差し込まれる。 */
+  senderName: string;
 }): Promise<BulkSendOutcome> {
   const leads = await prisma.lead.findMany({
     where: { id: { in: params.leadIds } },
@@ -175,23 +167,40 @@ export async function sendBulkOutreach(params: {
       continue;
     }
 
-    const ctx = contextOf(lead.company);
-    const subject = fillTemplate(params.subjectTemplate, ctx);
-    const bodyDraft = fillTemplate(params.bodyTemplate, ctx);
-
+    // 先にメッセージIDを採番する。{{webris_url}} を計測リンクにするには
+    // IDが必要で、そのIDは行を作らないと決まらないため。
     const message = await prisma.outreachMessage.create({
       data: {
         leadId: lead.id,
         direction: OutreachDirection.OUTBOUND,
-        subject,
-        body: bodyDraft,
+        subject: params.subjectTemplate,
+        body: params.bodyTemplate,
         approvalStatus: ApprovalStatus.APPROVED,
         approvedById: params.approvedById,
       },
     });
 
     const { link, pixel } = trackingParts(message.id);
-    const text = `${bodyDraft}\n\n詳しくはこちら: ${link}`;
+    const ctx = contextOf(lead.company, params.senderName, link);
+
+    let subject: string;
+    let bodyDraft: string;
+    try {
+      subject = fillTemplateStrict(params.subjectTemplate, ctx);
+      bodyDraft = fillTemplateStrict(params.bodyTemplate, ctx);
+    } catch (e) {
+      // 未対応の差込変数が残っている = そのまま送ると相手に {{...}} が届く。
+      // 送らずに行を消し、理由を呼び出し元へ返す。
+      await prisma.outreachMessage.delete({ where: { id: message.id } });
+      outcome.failed.push({
+        company: lead.company.name,
+        reason: e instanceof Error ? e.message : "テンプレートの差込に失敗しました",
+      });
+      continue;
+    }
+
+    // テンプレートが {{webris_url}} を含まない場合だけ、計測リンクを末尾に足す
+    const text = bodyDraft.includes(link) ? bodyDraft : `${bodyDraft}\n\n詳しくはこちら: ${link}`;
     const html = `${textToHtml(text)}${pixel}`;
 
     const result = await sendEmail({ to: recipient, subject, text, html });
@@ -207,7 +216,7 @@ export async function sendBulkOutreach(params: {
 
     await prisma.outreachMessage.update({
       where: { id: message.id },
-      data: { body: text, sentAt: new Date() },
+      data: { subject, body: text, sentAt: new Date() },
     });
     outcome.recorded++;
 
@@ -228,13 +237,16 @@ export async function sendTestEmail(params: {
   subjectTemplate: string;
   bodyTemplate: string;
   to: string;
+  senderName: string;
   /** 指定するとその企業の実データで差込む。未指定ならサンプル値。 */
   sampleLeadId?: string;
 }) {
   let ctx: TemplateContext = {
     company: "サンプル株式会社",
+    website: "https://example.co.jp",
     tools: ["Google Tag Manager", "Microsoft Clarity"],
     seoGaps: ["meta descriptionが無い", "構造化データ(JSON-LD)が無い"],
+    sender: params.senderName,
   };
 
   if (params.sampleLeadId) {
@@ -242,11 +254,12 @@ export async function sendTestEmail(params: {
       where: { id: params.sampleLeadId },
       include: { company: true },
     });
-    if (lead) ctx = contextOf(lead.company);
+    if (lead) ctx = contextOf(lead.company, params.senderName);
   }
 
-  const subject = `[テスト] ${fillTemplate(params.subjectTemplate, ctx)}`;
-  const text = fillTemplate(params.bodyTemplate, ctx);
+  // テスト送信でも本番と同じ検査を通す。ここで弾かれる文面は本番でも送れない。
+  const subject = `[テスト] ${fillTemplateStrict(params.subjectTemplate, ctx)}`;
+  const text = fillTemplateStrict(params.bodyTemplate, ctx);
 
   const result = await sendEmail({ to: params.to, subject, text });
   return { subject, body: text, to: params.to, ...result };

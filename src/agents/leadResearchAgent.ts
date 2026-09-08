@@ -2,8 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { callLlm } from "./llm";
 import { logDecision } from "./decisionLog";
 import { LeadStatus } from "@/generated/prisma/client";
-import { searchGbizCompanies, type GbizCompany } from "@/lib/gbizinfo";
-import { auditWebsites, type SiteAudit, type ToolCategory } from "@/lib/siteAudit";
+import { fetchGbizDetails, searchGbizCompanies, SERVICE_BUSINESS_ITEMS, type GbizCompany } from "@/lib/gbizinfo";
+import { auditWebsites, toHomepage, type SiteAudit, type ToolCategory } from "@/lib/siteAudit";
 
 const AGENT_NAME = "lead_research_agent";
 const QUALIFY_THRESHOLD = 70;
@@ -169,22 +169,23 @@ function pickCategory(audit: SiteAudit): string | null {
  */
 export async function discoverProspectCompanies(params?: {
   prefecture?: string;
-  employeeFrom?: number;
-  employeeTo?: number;
+  businessItem?: string;
   page?: number;
   limit?: number;
 }): Promise<ProspectingResult> {
   const limit = params?.limit ?? 10;
+  // 詳細を引くまでURLの有無が分からず、URL保有率は実測で3〜4割程度。
+  // limit社を作るには、その3倍程度を検査する必要がある。
+  const DETAIL_BUDGET = Math.min(limit * 4, 48);
 
-  const candidates = await searchGbizCompanies({
-    prefecture: params?.prefecture ?? "13", // 既定は東京都
-    employeeFrom: params?.employeeFrom ?? 10,
-    employeeTo: params?.employeeTo,
+  const found = await searchGbizCompanies({
+    prefecture: params?.prefecture ?? "13",
+    businessItem: params?.businessItem ?? SERVICE_BUSINESS_ITEMS[0],
     page: params?.page ?? 1,
   });
 
   const result: ProspectingResult = {
-    examined: candidates.length,
+    examined: 0,
     created: 0,
     skippedNoSite: 0,
     skippedUnreachable: 0,
@@ -192,33 +193,47 @@ export async function discoverProspectCompanies(params?: {
     withEmail: 0,
   };
 
-  // 既知の法人・既知のURLは除外してから、サイト解析にかける
-  const fresh: GbizCompany[] = [];
-  for (const c of candidates) {
-    if (!c.companyUrl) {
-      result.skippedNoSite++;
-      continue;
-    }
+  // 既知の法人を除外してから詳細を引く（無駄なAPI呼び出しを避ける）
+  const unknown: string[] = [];
+  for (const row of found) {
     const existing = await prisma.company.findFirst({
-      where: { OR: [{ corporateNumber: c.corporateNumber }, { website: c.companyUrl }] },
+      where: { corporateNumber: row.corporateNumber },
       select: { id: true },
     });
     if (existing) {
       result.skippedExisting++;
       continue;
     }
-    fresh.push(c);
-    if (fresh.length >= limit) break;
+    unknown.push(row.corporateNumber);
+    if (unknown.length >= DETAIL_BUDGET) break;
   }
 
-  const audits = await auditWebsites(fresh.map((c) => c.companyUrl as string));
+  const details = await fetchGbizDetails(unknown);
+  result.examined = details.length;
+
+  // gBizINFOに企業HPが登録されている法人だけがサイト解析の対象になる
+  const withSite: GbizCompany[] = [];
+  for (const d of details) {
+    if (!d.companyUrl) {
+      result.skippedNoSite++;
+      continue;
+    }
+    const homepage = toHomepage(d.companyUrl);
+    const dupUrl = await prisma.company.findFirst({ where: { website: homepage }, select: { id: true } });
+    if (dupUrl) {
+      result.skippedExisting++;
+      continue;
+    }
+    withSite.push(d);
+    if (withSite.length >= limit) break;
+  }
+
+  const audits = await auditWebsites(withSite.map((c) => toHomepage(c.companyUrl as string)));
   const auditByUrl = new Map(audits.map((a) => [a.url, a]));
 
   const createdLeadIds: string[] = [];
-  for (const c of fresh) {
-    const audit =
-      auditByUrl.get(c.companyUrl as string) ??
-      auditByUrl.get(`https://${(c.companyUrl as string).replace(/^https?:\/\//, "")}`);
+  for (const c of withSite) {
+    const audit = auditByUrl.get(toHomepage(c.companyUrl as string));
 
     if (!audit || !audit.reachable) {
       result.skippedUnreachable++;
@@ -233,7 +248,6 @@ export async function discoverProspectCompanies(params?: {
         website: audit.url,
         corporateNumber: c.corporateNumber,
         industry: c.businessItems[0] ?? null,
-        location: c.prefectureName,
         address: c.location,
         employeeRange: c.employeeNumber ? `${c.employeeNumber}名` : null,
         toolInterest: pickCategory(audit),

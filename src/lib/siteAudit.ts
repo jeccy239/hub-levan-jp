@@ -117,9 +117,22 @@ function findSeoGaps(html: string): string[] {
   return gaps;
 }
 
-export async function auditWebsite(rawUrl: string): Promise<SiteAudit> {
+/** gBizINFOのcompany_urlは「会社概要」「採用福利厚生」等の下層ページを指して
+ *  いることが多い（実測: ぐるなび→/profile/sustainability/diversity/）。
+ *  下層ページのtitleやmeta有無を見てもSEO成熟度は測れないため、必ず
+ *  オリジン（トップページ）に正規化してから解析する。 */
+export function toHomepage(rawUrl: string): string {
   let url = rawUrl.trim();
   if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return url;
+  }
+}
+
+export async function auditWebsite(rawUrl: string): Promise<SiteAudit> {
+  const url = toHomepage(rawUrl);
 
   const empty: SiteAudit = {
     url,

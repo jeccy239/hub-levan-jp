@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { isEmailConfigured } from "@/lib/email";
-import { requireUser } from "@/lib/authz";
+import { getSenderName } from "@/lib/authz";
 import { collectRecipients } from "@/lib/recipients";
 import ComposeForm from "./ComposeForm";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export default async function ComposePage() {
-  const user = await requireUser();
+  const senderName = await getSenderName();
   const { recipients, unreachableCount, webrisError } = await collectRecipients();
 
   return (
@@ -31,7 +31,7 @@ export default async function ComposePage() {
       <ComposeForm
         recipients={recipients}
         emailConfigured={isEmailConfigured()}
-        senderName={user.name ?? user.email}
+        senderName={senderName}
         unreachableCount={unreachableCount}
         webrisError={webrisError}
       />

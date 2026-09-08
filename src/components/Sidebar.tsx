@@ -95,8 +95,16 @@ export default function Sidebar({
         })}
       </nav>
       {user && (
-        <div className="px-3 py-4 border-t border-[var(--line)] space-y-2">
-          <div className="px-3 text-xs text-[var(--text-dim)] truncate">{user.name ?? user.email}</div>
+        <div className="px-3 py-4 border-t border-[var(--line)] space-y-1">
+          <Link
+            href="/settings/profile"
+            className={`block rounded-xl px-3 py-2 transition-colors ${
+              pathname === "/settings/profile" ? "bg-[var(--surface)] shadow-sm" : "hover:bg-[var(--surface)]/60"
+            }`}
+          >
+            <span className="block text-sm font-medium text-[var(--text)] truncate">{user.name ?? user.email}</span>
+            <span className="block text-[11px] text-[var(--text-dim)]">プロフィール設定</span>
+          </Link>
           <form action={onSignOut}>
             <button
               type="submit"

@@ -12,6 +12,14 @@ export const LEAD_STATUS_LABEL: Record<string, string> = {
   LOST: "失注",
 };
 
+export const USER_ROLE_LABEL: Record<string, string> = {
+  ADMIN: "管理者",
+  MANAGER: "マネージャー",
+  STAFF: "スタッフ",
+  SALES: "営業（旧ロール）",
+  OPERATOR: "オペレーター（旧ロール）",
+};
+
 export const APPROVAL_STATUS_LABEL: Record<string, string> = {
   PENDING: "承認待ち",
   APPROVED: "承認済み",

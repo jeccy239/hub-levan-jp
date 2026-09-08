@@ -1,4 +1,5 @@
 import { auth } from "./auth";
+import { prisma } from "./prisma";
 
 export type SessionUser = { id: string; email: string; name?: string | null; role: string };
 
@@ -16,6 +17,28 @@ export async function requireUser(): Promise<SessionUser> {
     throw new Error("認証が必要です。再度ログインしてください。");
   }
   return session.user as SessionUser;
+}
+
+/**
+ * The signed-in user as stored in the database, not as captured in the JWT.
+ *
+ * The session token keeps whatever name/email were current at login, so it
+ * goes stale the moment someone edits their profile. Anything the user
+ * actually sees or that goes out in their name — the sidebar, an email
+ * signature — must read through here instead of trusting the token.
+ */
+export async function getCurrentUser() {
+  const session = await requireUser();
+  return prisma.user.findUniqueOrThrow({
+    where: { id: session.id },
+    select: { id: true, name: true, email: true, role: true },
+  });
+}
+
+/** 差出人名。プロフィールで設定した表示名を常に最新で返す。 */
+export async function getSenderName(): Promise<string> {
+  const user = await getCurrentUser();
+  return user.name || user.email;
 }
 
 /**

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireApprover, requireUser } from "@/lib/authz";
+import { getSenderName, requireApprover, requireUser } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
 import { discoverProspectCompanies } from "@/agents/leadResearchAgent";
 import { draftTemplate, sendBulkOutreach, sendTestEmail } from "@/agents/salesAgent";
@@ -39,7 +39,7 @@ export async function sendTestEmailAction(formData: FormData) {
     sample = undefined;
   }
 
-  return sendTestEmail({ subjectTemplate, bodyTemplate, to, sample, senderName: user.name ?? user.email });
+  return sendTestEmail({ subjectTemplate, bodyTemplate, to, sample, senderName: await getSenderName() });
 }
 
 export async function draftTemplateAction(instruction: string) {
@@ -101,7 +101,7 @@ export async function sendBulkOutreachAction(formData: FormData) {
     subjectTemplate,
     bodyTemplate,
     approvedById: user.id,
-    senderName: user.name ?? user.email,
+    senderName: await getSenderName(),
   });
 
   await logAudit({

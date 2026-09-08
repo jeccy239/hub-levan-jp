@@ -102,7 +102,9 @@ const HTML_SIGNATURE = `  <hr style="border:none;border-top:1px solid #dddddd;ma
     配信停止をご希望の場合は、本メールにご返信いただければ以後お送りいたしません。
   </p>`;
 
-export const HTML_PRESETS = [
+export type MailTemplate = { name: string; subject: string; body: string };
+
+export const HTML_PRESETS: MailTemplate[] = [
   {
     name: TEMPLATE_NAMES[0],
     subject: "{{company}}様のSEOで1点気になった点があります",
@@ -182,3 +184,129 @@ ${HTML_SIGNATURE}
 ${WRAP_CLOSE}`,
   },
 ];
+
+// ---------------------------------------------------------------------------
+// HTMLパーツ。エディタに1クリックで差し込む断片。
+//
+// メールHTMLの制約に合わせてある:
+//  - 装飾はインラインのみ（<style> は落とされる）
+//  - 画像は絶対URL・width属性つき（Outlookは幅指定が無いと原寸で出す）
+//  - 横並びは <table>（float/flexはメールソフトで崩れる）
+//  - border-radius はOutlookでは効かないが、角丸が取れるだけで実害はない
+// ---------------------------------------------------------------------------
+
+export const IMAGE_BASE = "https://hub.levan.jp/mail";
+
+export const HTML_SNIPPETS: { label: string; hint: string; code: string }[] = [
+  {
+    label: "ヘッダー",
+    hint: "ブランドカラーの帯にロゴを置く（logo.png が必要）",
+    code: `  <div style="background:#0071e3;padding:18px;text-align:center">
+    <img src="${IMAGE_BASE}/logo.png" alt="WEBRIS" height="32" style="display:block;margin:0 auto;border:0">
+  </div>`,
+  },
+  {
+    label: "ヒーロー画像",
+    hint: "横幅いっぱいのバナー（hero.png が必要・推奨1200px幅）",
+    code: `  <img src="${IMAGE_BASE}/hero.png" alt="" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0">`,
+  },
+  {
+    label: "見出し",
+    hint: "セクション見出し",
+    code: `  <h2 style="font-size:18px;font-weight:bold;margin:28px 0 12px">見出しを入力</h2>`,
+  },
+  {
+    label: "強調テキスト",
+    hint: "赤太字。訴求の要点に1箇所だけ使うと効く",
+    code: `<span style="color:#d5372e;font-weight:bold">ここを強調</span>`,
+  },
+  {
+    label: "注意書き",
+    hint: "薄い背景の但し書きボックス",
+    code: `  <div style="background:#fbf8e8;padding:16px 20px;margin:24px 0;font-size:13px;line-height:1.9;color:#555">
+    ※ 注意事項を入力<br>
+    ※ 注意事項を入力
+  </div>`,
+  },
+  {
+    label: "ボタン",
+    hint: "中央寄せのCTA。クリック計測が付きます",
+    code: `  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px auto">
+    <tr><td style="background:#1d1d1f;border-radius:8px">
+      <a href="{{webris_url}}" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:bold;text-decoration:none">無料で試す</a>
+    </td></tr>
+  </table>`,
+  },
+  {
+    label: "ボタン2つ",
+    hint: "横並びのCTA。メールでは table でないと崩れます",
+    code: `  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px auto">
+    <tr>
+      <td style="background:#1d1d1f;border-radius:8px">
+        <a href="{{webris_url}}" style="display:inline-block;padding:14px 28px;color:#ffffff;font-size:15px;font-weight:bold;text-decoration:none">無料で試す</a>
+      </td>
+      <td style="width:16px">&nbsp;</td>
+      <td style="background:#1d1d1f;border-radius:8px">
+        <a href="{{webris_url}}" style="display:inline-block;padding:14px 28px;color:#ffffff;font-size:15px;font-weight:bold;text-decoration:none">詳しく見る</a>
+      </td>
+    </tr>
+  </table>`,
+  },
+  {
+    label: "区切り線",
+    hint: "セクションの区切り",
+    code: `  <hr style="border:none;border-top:1px solid #dddddd;margin:28px 0">`,
+  },
+];
+
+// キャンペーン告知型。ヘッダー帯 + ヒーロー画像 + 注意書き + 並列ボタン。
+HTML_PRESETS.push({
+  name: "キャンペーン告知（画像あり）",
+  subject: "【{{company}}様】WEBRISキャンペーンのお知らせ",
+  body: `<div style="max-width:600px;margin:0 auto;font-family:sans-serif;color:#111111">
+
+  <div style="background:#0071e3;padding:18px;text-align:center">
+    <img src="${IMAGE_BASE}/logo.png" alt="WEBRIS" height="32" style="display:block;margin:0 auto;border:0">
+  </div>
+
+  <img src="${IMAGE_BASE}/hero.png" alt="キャンペーンのご案内" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0">
+
+  <div style="padding:28px 24px;font-size:14px;line-height:1.9">
+
+    <p>{{company}} ご担当者様</p>
+
+    <p>いつもお世話になっております。株式会社LEVANの{{sender}}です。</p>
+
+    <p>WEBRISでは現在、（キャンペーン名）を実施しています。<br>
+    期間中にお申し込みいただくと、<span style="color:#d5372e;font-weight:bold">（特典内容）</span>となります。</p>
+
+    <div style="background:#fbf8e8;padding:16px 20px;margin:24px 0;font-size:13px;line-height:1.9;color:#555555">
+      ※ 対象プランを記載<br>
+      ※ 適用条件を記載<br>
+      ※ 期間を記載
+    </div>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px auto">
+      <tr>
+        <td style="background:#1d1d1f;border-radius:8px">
+          <a href="{{webris_url}}" style="display:inline-block;padding:14px 28px;color:#ffffff;font-size:15px;font-weight:bold;text-decoration:none">無料で試す</a>
+        </td>
+        <td style="width:16px">&nbsp;</td>
+        <td style="background:#1d1d1f;border-radius:8px">
+          <a href="{{webris_url}}" style="display:inline-block;padding:14px 28px;color:#ffffff;font-size:15px;font-weight:bold;text-decoration:none">詳しく見る</a>
+        </td>
+      </tr>
+    </table>
+
+    <p>ぜひこの機会にご検討ください。</p>
+
+    <hr style="border:none;border-top:1px solid #dddddd;margin:28px 0">
+    <p style="font-size:12px;color:#666666;line-height:1.7">
+      {{company_address}}<br>
+      WEBRIS {{sender}}<br>
+      配信停止をご希望の場合は、本メールにご返信いただければ以後お送りいたしません。
+    </p>
+
+  </div>
+</div>`,
+});

@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { draftTemplateAction, sendBulkOutreachAction, sendTestEmailAction } from "../actions";
-import { HTML_PRESETS, PRESETS, VARIABLES } from "./templates";
+import { HTML_PRESETS, HTML_SNIPPETS, PRESETS, VARIABLES } from "./templates";
 import { fillPreview, unresolvedVariables } from "./preview";
 import { parseManualEmails } from "@/lib/parseEmails";
 
@@ -100,15 +100,25 @@ export default function ComposeForm({
       ? webrisCustomersSelected
       : 0;
 
-  function insertVariable(token: string) {
+  /** カーソル位置に差し込む。末尾追記だと、書きかけの本文の途中に
+   *  パーツを足せず使い物にならない。 */
+  function insertAtCursor(text: string) {
     const el = bodyRef.current;
     if (!el) return;
     const start = el.selectionStart ?? body.length;
-    const next = body.slice(0, start) + token + body.slice(el.selectionEnd ?? start);
-    setBody(next);
+    const end = el.selectionEnd ?? start;
+    // ブロック要素は前後を改行で挟まないと、既存の行に食い込む
+    const block = text.trimStart().startsWith("<") && !text.trimStart().startsWith("<span");
+    const before = body.slice(0, start);
+    const after = body.slice(end);
+    const pad = (side: string, edge: string) =>
+      block && side.length > 0 && !side.endsWith("\n") && !side.startsWith("\n") ? edge : "";
+    const chunk = `${pad(before, "\n")}${text}${block ? "\n" : ""}`;
+    setBody(before + chunk + after);
+    const caret = start + chunk.length;
     requestAnimationFrame(() => {
       el.focus();
-      el.setSelectionRange(start + token.length, start + token.length);
+      el.setSelectionRange(caret, caret);
     });
   }
 
@@ -297,7 +307,7 @@ export default function ComposeForm({
                     <button
                       key={v.token}
                       type="button"
-                      onClick={() => insertVariable(v.token)}
+                      onClick={() => insertAtCursor(v.token)}
                       title={v.label}
                       className="px-2 py-1 rounded-md text-[11px] font-mono bg-[var(--accent-tint)] text-[var(--accent-strong)] hover:bg-[var(--accent)] hover:text-white transition-colors whitespace-nowrap"
                     >
@@ -306,6 +316,22 @@ export default function ComposeForm({
                   ))}
                 </div>
               </div>
+              {format === "html" && (
+                <div className="mb-2 flex flex-wrap items-center gap-1">
+                  <span className="text-[11px] text-[var(--text-dim)] mr-1">パーツ</span>
+                  {HTML_SNIPPETS.map((sn) => (
+                    <button
+                      key={sn.label}
+                      type="button"
+                      onClick={() => insertAtCursor(sn.code)}
+                      title={sn.hint}
+                      className="px-2 py-1 rounded-md text-[11px] font-medium bg-[var(--surface-2)] text-[var(--text-dim)] hover:bg-[var(--text)] hover:text-white transition-colors whitespace-nowrap"
+                    >
+                      + {sn.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               <textarea
                 ref={bodyRef}
                 value={body}

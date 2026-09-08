@@ -1,9 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 const MODEL = "claude-sonnet-5";
-// Approximate Sonnet 5 blended pricing, used only for cost-ledger estimates.
-const COST_PER_1K_INPUT = 0.003;
-const COST_PER_1K_OUTPUT = 0.015;
+// Sonnet 5 list price: $2.00 / $10.00 per 1M tokens. Used for cost-ledger
+// estimates only. These were carrying Sonnet 4.6's $3/$15, which overstated
+// every recorded cost by 50%.
+const COST_PER_1K_INPUT = 0.002;
+const COST_PER_1K_OUTPUT = 0.01;
 
 export type LlmResult = {
   text: string;

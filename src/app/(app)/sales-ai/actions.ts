@@ -31,6 +31,7 @@ export async function sendTestEmailAction(formData: FormData) {
   const bodyTemplate = String(formData.get("body") ?? "");
   const to = String(formData.get("to") ?? "").trim() || user.email;
   const sampleJson = String(formData.get("sample") ?? "");
+  const bodyFormat = formData.get("bodyFormat") === "html" ? ("html" as const) : ("text" as const);
 
   let sample: { name: string; website: string; tools: string[]; seoGaps: string[] } | undefined;
   try {
@@ -39,7 +40,7 @@ export async function sendTestEmailAction(formData: FormData) {
     sample = undefined;
   }
 
-  return sendTestEmail({ subjectTemplate, bodyTemplate, to, sample, senderName: await getSenderName() });
+  return sendTestEmail({ subjectTemplate, bodyTemplate, to, sample, bodyFormat, senderName: await getSenderName() });
 }
 
 export async function draftTemplateAction(instruction: string) {
@@ -53,6 +54,7 @@ export async function sendBulkOutreachAction(formData: FormData) {
   const bodyTemplate = String(formData.get("body") ?? "").trim();
   const recipientIds = formData.getAll("recipientIds").map(String);
   const manualRaw = String(formData.get("manualEmails") ?? "");
+  const bodyFormat = formData.get("bodyFormat") === "html" ? ("html" as const) : ("text" as const);
 
   if (!subjectTemplate || !bodyTemplate) {
     throw new Error("件名と本文を入力してください。");
@@ -102,6 +104,7 @@ export async function sendBulkOutreachAction(formData: FormData) {
     bodyTemplate,
     approvedById: user.id,
     senderName: await getSenderName(),
+    bodyFormat,
   });
 
   await logAudit({

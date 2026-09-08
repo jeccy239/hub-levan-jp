@@ -12,6 +12,7 @@ import {
   submitMeetingTranscript,
   submitReply,
 } from "../actions";
+import { htmlToText } from "@/lib/email";
 import {
   AGENT_NAME_LABEL,
   APPROVAL_STATUS_LABEL,
@@ -138,7 +139,11 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                 <span>{m.createdAt.toLocaleString("ja-JP")}</span>
               </div>
               {m.subject && <div className="font-medium mb-1 text-[var(--text)]">{m.subject}</div>}
-              <p className="text-sm whitespace-pre-wrap text-[var(--text)]">{m.body}</p>
+              {/* HTMLで送った本文をそのまま出すと生タグが見えるので、
+                  同梱しているテキスト版と同じ変換をかけて表示する。 */}
+              <p className="text-sm whitespace-pre-wrap text-[var(--text)]">
+                {m.bodyFormat === "html" ? htmlToText(m.body) : m.body}
+              </p>
               {m.direction === "OUTBOUND" && (
                 <div className="mt-3 flex items-center gap-2">
                   <span

@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { draftTemplateAction, sendBulkOutreachAction, sendTestEmailAction } from "../actions";
-import { PRESETS, VARIABLES } from "./templates";
+import { HTML_PRESETS, PRESETS, VARIABLES } from "./templates";
 import { fillPreview, unresolvedVariables } from "./preview";
 import { parseManualEmails } from "@/lib/parseEmails";
 
@@ -50,6 +50,7 @@ export default function ComposeForm({
   const [query, setQuery] = useState("");
   const [manualEmails, setManualEmails] = useState("");
   const [aiInstruction, setAiInstruction] = useState("");
+  const [format, setFormat] = useState<"text" | "html">("text");
   const [status, setStatus] = useState<{ kind: "ok" | "error" | "info"; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -76,6 +77,8 @@ export default function ComposeForm({
 
   const totalToSend = selectedList.length + manualParsed.valid.length;
   const previewTarget = selectedList[0] ?? recipients.find((r) => r.kind === tab) ?? recipients[0] ?? null;
+
+  const activePresets = format === "html" ? HTML_PRESETS : PRESETS;
 
   const filledSubject = fillPreview(subject, previewTarget, senderName);
   const filledBody = fillPreview(body, previewTarget, senderName);
@@ -130,6 +133,7 @@ export default function ComposeForm({
     const fd = new FormData();
     fd.set("subject", subject);
     fd.set("body", body);
+    fd.set("bodyFormat", format);
     if (previewTarget) {
       fd.set(
         "sample",
@@ -170,6 +174,7 @@ export default function ComposeForm({
     const fd = new FormData();
     fd.set("subject", subject);
     fd.set("body", body);
+    fd.set("bodyFormat", format);
     fd.set("manualEmails", manualEmails);
     for (const r of selectedList) fd.append("recipientIds", r.id);
 
@@ -211,9 +216,44 @@ export default function ComposeForm({
         {/* ---------- 左: エディタ + 宛先 ---------- */}
         <div className="space-y-4">
           <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-sm p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-[var(--text-dim)]">形式</span>
+              <div className="inline-flex p-0.5 rounded-full bg-[var(--surface-2)]">
+                {(["text", "html"] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => {
+                      if (f === format) return;
+                      // 記法を切り替えたら、その記法の既定テンプレートを読み込む。
+                      // テキストのままHTMLに切り替えると、改行が消えたメールになる。
+                      const preset = (f === "html" ? HTML_PRESETS : PRESETS)[0];
+                      setFormat(f);
+                      setSubject(preset.subject);
+                      setBody(preset.body);
+                      setStatus({
+                        kind: "info",
+                        text: f === "html" ? "HTML形式に切り替えました。" : "テキスト形式に切り替えました。",
+                      });
+                    }}
+                    className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                      format === f ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--text-dim)]"
+                    }`}
+                  >
+                    {f === "text" ? "テキスト" : "HTML"}
+                  </button>
+                ))}
+              </div>
+              <span className="text-[11px] text-[var(--text-dim)]">
+                {format === "html"
+                  ? "HTMLで記述します。テキスト版も自動生成して同梱します。"
+                  : "プレーンテキスト。新規開拓ではこちらの方が届きやすい傾向があります。"}
+              </span>
+            </div>
+
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium text-[var(--text-dim)]">テンプレート</span>
-              {PRESETS.map((p) => (
+              {activePresets.map((p) => (
                 <button
                   key={p.name}
                   type="button"
@@ -241,7 +281,9 @@ export default function ComposeForm({
             <div>
               <div className="mb-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-[var(--text-dim)]">本文</span>
+                  <span className="text-xs font-medium text-[var(--text-dim)]">
+                    本文{format === "html" && <span className="ml-1 font-normal">（HTML）</span>}
+                  </span>
                   <span className="text-[11px] text-[var(--text-dim)]">クリックで差込変数を挿入</span>
                 </div>
                 <div className="mt-1.5 flex flex-wrap gap-1">
@@ -263,11 +305,21 @@ export default function ComposeForm({
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 rows={15}
-                className="w-full rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm bg-[var(--surface)] text-[var(--text)] leading-relaxed focus:outline-none focus:border-[var(--accent)]"
+                spellCheck={format === "text"}
+                className={`w-full rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm bg-[var(--surface)] text-[var(--text)] leading-relaxed focus:outline-none focus:border-[var(--accent)] ${
+                  format === "html" ? "font-mono text-[12px]" : ""
+                }`}
               />
               <p className="mt-1.5 text-[11px] text-[var(--text-dim)]">
                 特定電子メール法により、送信者情報と配信停止方法の記載が必要です。テンプレートには含まれています。
               </p>
+              {format === "html" && (
+                <p className="mt-1 text-[11px] text-[var(--text-dim)]">
+                  画像は <code className="font-mono">{"<img src=\"https://hub.levan.jp/mail/xxx.png\">"}</code> のように
+                  絶対URLで指定してください（メールソフトは相対パスを解決できません）。多くのメールソフトは既定で画像を
+                  ブロックするため、重要な情報を画像内だけに置かないでください。
+                </p>
+              )}
             </div>
 
             <div className="rounded-xl bg-[var(--surface-2)] p-3">
@@ -418,8 +470,21 @@ export default function ComposeForm({
             <div className="p-4">
               <div className="text-[11px] text-[var(--text-dim)]">件名</div>
               <div className="text-sm font-medium text-[var(--text)] mt-0.5">{filledSubject}</div>
-              <div className="mt-3 pt-3 border-t border-[var(--line)] text-[13px] leading-relaxed whitespace-pre-wrap text-[var(--text-dim)] max-h-[380px] overflow-y-auto">
-                {filledBody}
+              <div className="mt-3 pt-3 border-t border-[var(--line)]">
+                {format === "html" ? (
+                  // 自作HTMLとはいえ、アプリのオリジンで実行させない。
+                  // sandbox 無しの srcdoc はセッションを触れる状態になる。
+                  <iframe
+                    title="HTMLプレビュー"
+                    sandbox=""
+                    srcDoc={filledBody}
+                    className="w-full h-[380px] rounded-lg border border-[var(--line)] bg-white"
+                  />
+                ) : (
+                  <div className="text-[13px] leading-relaxed whitespace-pre-wrap text-[var(--text-dim)] max-h-[380px] overflow-y-auto">
+                    {filledBody}
+                  </div>
+                )}
               </div>
             </div>
           </section>

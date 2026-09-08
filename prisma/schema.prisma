@@ -330,9 +330,12 @@ model OutreachMessage {
   // 実際に送った先。手入力宛先はここにしか残らないので、監査上も必須。
   toEmail   String?
 
-  direction OutreachDirection
-  subject   String?
-  body      String            @db.Text
+  direction  OutreachDirection
+  subject    String?
+  body       String            @db.Text
+  // "text" | "html" — 本文の記法。HTMLで送った文面をプレーン扱いで
+  // 表示すると生タグが見えてしまうため、表示側の分岐に使う。
+  bodyFormat String            @default("text")
 
   // outbound-only fields
   approvalStatus ApprovalStatus? // null for inbound messages

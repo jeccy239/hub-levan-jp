@@ -59,3 +59,58 @@ export const PRESETS = [
       SIGNATURE,
   },
 ];
+
+// HTMLテンプレート。画像は public/ に置いたファイルを絶対URLで参照する
+// （メールクライアントは相対パスを解決できない）。
+export const HTML_PRESETS = [
+  {
+    name: "お知らせ（画像あり）",
+    subject: "【WEBRIS】{{company}}様へお知らせ",
+    body: `<div style="font-family:sans-serif;font-size:14px;line-height:1.8;color:#111;max-width:600px">
+  <img src="https://hub.levan.jp/mail/logo.png" alt="WEBRIS" width="160" style="display:block;margin-bottom:24px">
+
+  <p>{{company}} ご担当者様</p>
+
+  <p>いつもWEBRISをご利用いただきありがとうございます。<br>
+  株式会社LEVANの{{sender}}です。</p>
+
+  <p>（ここにお知らせ内容を記載してください）</p>
+
+  <p style="margin:28px 0">
+    <a href="{{webris_url}}" style="background:#0071e3;color:#fff;padding:12px 24px;border-radius:24px;text-decoration:none;display:inline-block">WEBRISを開く</a>
+  </p>
+
+  <hr style="border:none;border-top:1px solid #ddd;margin:28px 0">
+  <p style="font-size:12px;color:#666">
+    {{company_address}}<br>
+    WEBRIS {{sender}}<br>
+    配信停止をご希望の場合は、本メールにご返信いただければ以後お送りいたしません。
+  </p>
+</div>`,
+  },
+  {
+    name: "シンプルHTML",
+    subject: "{{company}}様のSEOで1点気になった点があります",
+    body: `<div style="font-family:sans-serif;font-size:14px;line-height:1.8;color:#111;max-width:600px">
+  <p>{{company}} ご担当者様</p>
+
+  <p>突然のご連絡失礼いたします。株式会社LEVANの{{sender}}と申します。</p>
+
+  <p>貴社サイト（<a href="{{website}}">{{website}}</a>）を拝見し、{{tools}}をお使いなのを確認しました。<br>
+  一方で「<strong>{{seoGap}}</strong>」という点があり、{{seoOpportunity}}</p>
+
+  <p>弊社のAI SEOツール「WEBRIS」は、次に何を直すべきかをAIが自動で洗い出します。</p>
+
+  <p style="margin:28px 0">
+    <a href="{{webris_url}}" style="background:#0071e3;color:#fff;padding:12px 24px;border-radius:24px;text-decoration:none;display:inline-block">無料で試す</a>
+  </p>
+
+  <hr style="border:none;border-top:1px solid #ddd;margin:28px 0">
+  <p style="font-size:12px;color:#666">
+    {{company_address}}<br>
+    WEBRIS {{sender}}<br>
+    配信停止をご希望の場合は、本メールにご返信いただければ以後お送りいたしません。
+  </p>
+</div>`,
+  },
+];

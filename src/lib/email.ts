@@ -72,3 +72,34 @@ export function textToHtml(text: string): string {
     .replaceAll("\n", "<br>");
   return `<div style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#111">${body}</div>`;
 }
+
+/**
+ * HTML -> プレーンテキスト。HTMLメールでも text/plain を必ず同梱するために使う。
+ * 片方しか入れないメールは迷惑メール判定を受けやすく、テキスト専用の
+ * メールクライアントでは中身が読めなくなる。
+ */
+export function htmlToText(html: string): string {
+  return html
+    .replace(/<head[\s\S]*?<\/head>/gi, "")
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, "")
+    // リンクは「文言 (URL)」にして、テキストでも遷移先が分かるようにする
+    .replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, (_m, href, label) => {
+      const text = String(label).replace(/<[^>]+>/g, "").trim();
+      return text && text !== href ? `${text} (${href})` : href;
+    })
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|tr|h[1-6]|li)>/gi, "\n")
+    .replace(/<li\b[^>]*>/gi, "・")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .split("\n")
+    .map((l) => l.trim())
+    .join("\n")
+    .trim();
+}

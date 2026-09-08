@@ -3,7 +3,7 @@ import { callLlm } from "./llm";
 import { logDecision } from "./decisionLog";
 import { ApprovalStatus, LeadStatus, OutreachDirection, ReplyCategory } from "@/generated/prisma/client";
 import { LEAD_STATUS_LABEL, REPLY_CATEGORY_LABEL } from "@/lib/labels";
-import { isEmailConfigured, sendEmail, textToHtml } from "@/lib/email";
+import { htmlToText, isEmailConfigured, sendEmail, textToHtml } from "@/lib/email";
 import { fillTemplateStrict, type TemplateContext } from "@/lib/mailTemplate";
 import { parseRecipientId, type Recipient } from "@/lib/recipients";
 
@@ -130,7 +130,10 @@ export async function sendBulkOutreach(params: {
   bodyTemplate: string;
   approvedById: string;
   senderName: string;
+  /** 本文の記法。既定はプレーンテキスト。 */
+  bodyFormat?: "text" | "html";
 }): Promise<BulkSendOutcome> {
+  const bodyFormat = params.bodyFormat ?? "text";
   const outcome: BulkSendOutcome = {
     total: params.recipients.length,
     delivered: 0,
@@ -153,6 +156,7 @@ export async function sendBulkOutreach(params: {
         direction: OutreachDirection.OUTBOUND,
         subject: params.subjectTemplate,
         body: params.bodyTemplate,
+        bodyFormat,
         approvalStatus: ApprovalStatus.APPROVED,
         approvedById: params.approvedById,
       },
@@ -183,8 +187,20 @@ export async function sendBulkOutreach(params: {
       continue;
     }
 
-    const text = bodyDraft.includes(link) ? bodyDraft : `${bodyDraft}\n\n詳しくはこちら: ${link}`;
-    const html = `${textToHtml(text)}${pixel}`;
+    // HTMLでもテキストでも、開封ピクセルは常にHTML側に入れる。
+    // text/plain 側は必ず同梱する（片方だけだと迷惑メール判定が上がる）。
+    let stored: string;
+    let text: string;
+    let html: string;
+    if (bodyFormat === "html") {
+      stored = bodyDraft.includes(link) ? bodyDraft : `${bodyDraft}\n<p>詳しくはこちら: <a href="${link}">${link}</a></p>`;
+      html = `${stored}${pixel}`;
+      text = htmlToText(stored);
+    } else {
+      stored = bodyDraft.includes(link) ? bodyDraft : `${bodyDraft}\n\n詳しくはこちら: ${link}`;
+      text = stored;
+      html = `${textToHtml(stored)}${pixel}`;
+    }
 
     const result = await sendEmail({ to: r.email, subject, text, html });
 
@@ -199,7 +215,7 @@ export async function sendBulkOutreach(params: {
 
     await prisma.outreachMessage.update({
       where: { id: message.id },
-      data: { subject, body: text, sentAt: new Date() },
+      data: { subject, body: stored, sentAt: new Date() },
     });
     outcome.recorded++;
 
@@ -226,6 +242,7 @@ export async function sendTestEmail(params: {
   bodyTemplate: string;
   to: string;
   senderName: string;
+  bodyFormat?: "text" | "html";
   /** 指定するとその宛先の実データで差込む。未指定ならサンプル値。 */
   sample?: Pick<Recipient, "name" | "website" | "tools" | "seoGaps">;
 }) {
@@ -247,10 +264,16 @@ export async function sendTestEmail(params: {
 
   // テスト送信でも本番と同じ検査を通す。ここで弾かれる文面は本番でも送れない。
   const subject = `[テスト] ${fillTemplateStrict(params.subjectTemplate, ctx)}`;
-  const text = fillTemplateStrict(params.bodyTemplate, ctx);
+  const filled = fillTemplateStrict(params.bodyTemplate, ctx);
 
-  const result = await sendEmail({ to: params.to, subject, text });
-  return { subject, body: text, to: params.to, ...result };
+  const isHtml = params.bodyFormat === "html";
+  const result = await sendEmail({
+    to: params.to,
+    subject,
+    text: isHtml ? htmlToText(filled) : filled,
+    html: isHtml ? filled : undefined,
+  });
+  return { subject, body: filled, to: params.to, ...result };
 }
 
 /** テンプレート下書きをAIに作らせる。APIキー未設定時は、実データ差込を

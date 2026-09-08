@@ -13,7 +13,6 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "ダッシュボード" },
   { href: "/companies", label: "顧客管理" },
   { href: "/leads", label: "リード管理" },
-  { href: "/sales-ai", label: "WEBRIS SALES AI" },
   { href: "/projects", label: "案件管理" },
   { href: "/tasks", label: "タスク" },
   {
@@ -21,10 +20,22 @@ const NAV_ITEMS: NavItem[] = [
     label: "WEBRIS（ウェブリス）",
     children: [
       { href: "/webris", label: "顧客一覧" },
+      { href: "/sales-ai", label: "WEBRIS メール管理" },
       { href: "/webris/claude-usage", label: "Claude Console API" },
     ],
   },
 ];
+
+/** 現在のパスに一致する子のうち、最も限定的なもの（hrefが最長）を選ぶ。
+ *  "/webris" と "/webris/claude-usage" は前者が後者の接頭辞になるため、
+ *  単純な startsWith だと両方が点灯してしまう。 */
+function activeChildHref(pathname: string, children: { href: string }[]): string | null {
+  const matches = children.filter(
+    (c) => pathname === c.href || pathname.startsWith(c.href + "/"),
+  );
+  if (matches.length === 0) return null;
+  return matches.reduce((a, b) => (b.href.length > a.href.length ? b : a)).href;
+}
 
 const linkClass = (isActive: boolean) =>
   `block rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
@@ -51,8 +62,10 @@ export default function Sidebar({
       </div>
       <nav className="flex-1 px-3 space-y-0.5">
         {NAV_ITEMS.map((item) => {
-          const isGroupActive = pathname === item.href || pathname.startsWith(item.href + "/");
-          const isActive = item.href === "/" ? pathname === "/" : isGroupActive;
+          const selfActive = pathname === item.href || pathname.startsWith(item.href + "/");
+          const activeChild = item.children ? activeChildHref(pathname, item.children) : null;
+          const isGroupActive = selfActive || activeChild !== null;
+          const isActive = item.href === "/" ? pathname === "/" : selfActive;
 
           if (!item.children) {
             return (
@@ -69,7 +82,7 @@ export default function Sidebar({
               </div>
               <div className="pl-2 space-y-0.5">
                 {item.children.map((child) => {
-                  const isChildActive = pathname === child.href;
+                  const isChildActive = activeChild === child.href;
                   return (
                     <Link key={child.href} href={child.href} className={linkClass(isChildActive)}>
                       {child.label}

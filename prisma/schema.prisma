@@ -83,7 +83,7 @@ model Company {
   employeeRange String?
   revenueRange  String?
 
-  // WEBRIS SALES AIのリサーチ対象カテゴリ（SEOツール/ヒートマップツール/LLMOツール利用中、広告代理店 等）
+  // WEBRIS メール管理のリサーチ対象カテゴリ（SEOツール/ヒートマップツール/LLMOツール利用中、広告代理店 等）
   toolInterest String?
   // 国税庁法人番号（gBizINFO由来）。実在法人であることの裏付け＋重複防止。
   corporateNumber String? @unique

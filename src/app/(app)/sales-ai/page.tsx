@@ -66,7 +66,7 @@ export default async function SalesAiPage() {
     <div className="max-w-6xl mx-auto px-6 py-10 space-y-7">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-[28px] font-semibold tracking-tight text-[var(--text)]">WEBRIS SALES AI</h1>
+          <h1 className="text-[28px] font-semibold tracking-tight text-[var(--text)]">WEBRIS メール管理</h1>
           <p className="text-[var(--text-dim)] mt-1 text-sm max-w-xl">
             実在企業をgBizINFOから取得し、各社サイトを解析して導入ツールとSEOの弱点を突き止め、根拠のある営業メールを配信します。
           </p>

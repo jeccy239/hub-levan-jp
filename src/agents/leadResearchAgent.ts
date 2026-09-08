@@ -111,7 +111,7 @@ export async function runLeadResearchAgent(leadId: string) {
 
 
 // ---------------------------------------------------------------------------
-// WEBRIS SALES AI — 実在企業のプロスペクティング。Level 3（全自動）だが、
+// WEBRIS メール管理 — 実在企業のプロスペクティング。Level 3（全自動）だが、
 // 調査と保存しか行わない。連絡は salesAgent.ts 側の人間操作でのみ発生する。
 //
 // 企業リストは gBizINFO（経済産業省・無料）から取得し、各社の公開サイトを

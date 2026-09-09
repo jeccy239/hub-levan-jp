@@ -199,7 +199,7 @@ export default async function WebrisCustomersPage({
                   <th className="px-4 py-3">担当者</th>
                   <th className="px-4 py-3">プラン</th>
                   <th className="px-4 py-3">月額</th>
-                  <th className="px-4 py-3">ステータス</th>
+                  <th className="px-4 py-3 whitespace-nowrap">ステータス</th>
                   <th className="px-4 py-3">契約日</th>
                   <th className="px-4 py-3">次回更新日</th>
                 </tr>
@@ -228,9 +228,9 @@ export default async function WebrisCustomersPage({
                       </td>
                       <td className="px-4 py-3 text-[var(--text)]">{contract.planName}</td>
                       <td className="px-4 py-3 tabular-nums text-[var(--text)]">{formatYen(contract.monthlyPriceJpy)}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span
-                          className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                          className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium ${
                             contract.subscriptionStatus ? (STATUS_STYLE[contract.subscriptionStatus] ?? "") : "bg-[var(--surface-2)] text-[var(--text-dim)]"
                           }`}
                         >

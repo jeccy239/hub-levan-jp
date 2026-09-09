@@ -6,7 +6,10 @@ import {
   WebrisApiError,
   WebrisNotConfiguredError,
 } from "@/lib/webris";
+import type { WebrisOrganization } from "@/lib/webris";
 import { formatYen } from "@/lib/labels";
+
+type WebrisOrg = WebrisOrganization;
 
 export const dynamic = "force-dynamic";
 
@@ -89,13 +92,31 @@ export default async function WebrisCustomersPage({
 
   // 同じ担当者アカウント（メール）が複数の組織を運用しているケースがある
   // （例: gi@rojam.jp が株式会社ROJAMとROJAMオンラインの両方を運用）。
-  // 一覧に同じメールが別々の行で出ると「重複データ」に見えてしまうため、
-  // 各行の担当者欄に「このアカウントが他に運用している組織」を添える。
-  const orgsByOwnerEmail = new Map<string, { id: string; name: string; planName: string }[]>();
+  // 実際に課金されている契約は1つのアカウントに1本のことが多く、他の
+  // 組織はその契約の下で無料運用されているだけ。個々の組織が自分の
+  // planCode（大半はFree）をそのまま出すと「契約者は本当はProなのに
+  // Freeと表示される」ことになるため、同じメールの中で最も高額な契約を
+  // 持つ組織を「契約主体」とみなし、その他の組織にはその契約の
+  // プラン・月額・ステータスを表示する。
+  const orgsByOwnerEmail = new Map<string, WebrisOrg[]>();
   for (const org of organizations) {
     const list = orgsByOwnerEmail.get(org.ownerEmail) ?? [];
-    list.push({ id: org.id, name: org.name, planName: org.planName });
+    list.push(org);
     orgsByOwnerEmail.set(org.ownerEmail, list);
+  }
+  const contractOrgByEmail = new Map<string, WebrisOrg>();
+  for (const [email, orgs] of orgsByOwnerEmail) {
+    // 実際に課金されている組織が無いメール（全部Free）は、グルーピングする
+    // 意味のある「契約」自体が存在しないので束ねない。
+    const paidOrgs = orgs.filter((o) => o.monthlyPriceJpy > 0);
+    if (paidOrgs.length === 0) continue;
+    const contract = paidOrgs.reduce((best, o) => (o.monthlyPriceJpy > best.monthlyPriceJpy ? o : best), paidOrgs[0]);
+    contractOrgByEmail.set(email, contract);
+  }
+
+  function resolveContract(org: WebrisOrg): WebrisOrg {
+    if (org.monthlyPriceJpy > 0) return org; // 自身が課金契約なら、そのまま
+    return contractOrgByEmail.get(org.ownerEmail) ?? org;
   }
 
   return (
@@ -174,7 +195,7 @@ export default async function WebrisCustomersPage({
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs font-medium tracking-wide text-[var(--text-dim)] border-b border-[var(--line)]">
-                  <th className="px-4 py-3">会社名</th>
+                  <th className="px-4 py-3">アカウント名（契約名）</th>
                   <th className="px-4 py-3">担当者</th>
                   <th className="px-4 py-3">プラン</th>
                   <th className="px-4 py-3">月額</th>
@@ -184,44 +205,45 @@ export default async function WebrisCustomersPage({
                 </tr>
               </thead>
               <tbody>
-                {inRange.map((org) => (
-                  <tr key={org.id} className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--surface-2)] transition-colors">
-                    <td className="px-4 py-3">
-                      <Link href={`/webris/${org.id}`} className="font-medium text-[var(--text)] hover:text-[var(--accent)]">
-                        {org.name}
-                      </Link>
-                      {org.websiteUrl && <div className="text-xs text-[var(--text-dim)]">{org.websiteUrl}</div>}
-                    </td>
-                    <td className="px-4 py-3 text-[var(--text-dim)]">
-                      <div>{org.ownerName ?? "—"}</div>
-                      <div className="text-xs">{org.ownerEmail}</div>
-                      {(() => {
-                        const others = (orgsByOwnerEmail.get(org.ownerEmail) ?? []).filter((o) => o.id !== org.id);
-                        if (others.length === 0) return null;
-                        return (
+                {inRange.map((org) => {
+                  const contract = resolveContract(org);
+                  const isChildOfContract = contract.id !== org.id;
+                  return (
+                    <tr key={org.id} className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--surface-2)] transition-colors">
+                      <td className="px-4 py-3">
+                        <Link href={`/webris/${contract.id}`} className="font-medium text-[var(--text)] hover:text-[var(--accent)]">
+                          {contract.name}
+                        </Link>
+                        {contract.websiteUrl && <div className="text-xs text-[var(--text-dim)]">{contract.websiteUrl}</div>}
+                        {isChildOfContract && (
                           <div className="text-xs text-[var(--accent)] mt-1">
-                            管理アカウント：他に{others.map((o) => `${o.name}（${o.planName}）`).join("・")}も運用中
+                            運用サイト：{org.name}
+                            {org.websiteUrl && `（${org.websiteUrl}）`}
                           </div>
-                        );
-                      })()}
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-[var(--text-dim)]">
+                        <div>{org.ownerName ?? "—"}</div>
+                        <div className="text-xs">{org.ownerEmail}</div>
+                      </td>
+                      <td className="px-4 py-3 text-[var(--text)]">{contract.planName}</td>
+                      <td className="px-4 py-3 tabular-nums text-[var(--text)]">{formatYen(contract.monthlyPriceJpy)}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                            contract.subscriptionStatus ? (STATUS_STYLE[contract.subscriptionStatus] ?? "") : "bg-[var(--surface-2)] text-[var(--text-dim)]"
+                          }`}
+                        >
+                          {contract.subscriptionStatus ? (SUBSCRIPTION_STATUS_LABEL[contract.subscriptionStatus] ?? contract.subscriptionStatus) : "無料プラン"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-[var(--text-dim)]">{new Date(org.createdAt).toLocaleDateString("ja-JP")}</td>
+                      <td className="px-4 py-3 text-[var(--text-dim)]">
+                      {contract.currentPeriodEnd ? new Date(contract.currentPeriodEnd).toLocaleDateString("ja-JP") : "—"}
                     </td>
-                    <td className="px-4 py-3 text-[var(--text)]">{org.planName}</td>
-                    <td className="px-4 py-3 tabular-nums text-[var(--text)]">{formatYen(org.monthlyPriceJpy)}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                          org.subscriptionStatus ? (STATUS_STYLE[org.subscriptionStatus] ?? "") : "bg-[var(--surface-2)] text-[var(--text-dim)]"
-                        }`}
-                      >
-                        {org.subscriptionStatus ? (SUBSCRIPTION_STATUS_LABEL[org.subscriptionStatus] ?? org.subscriptionStatus) : "無料プラン"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-[var(--text-dim)]">{new Date(org.createdAt).toLocaleDateString("ja-JP")}</td>
-                    <td className="px-4 py-3 text-[var(--text-dim)]">
-                      {org.currentPeriodEnd ? new Date(org.currentPeriodEnd).toLocaleDateString("ja-JP") : "—"}
-                    </td>
-                  </tr>
-                ))}
+                    </tr>
+                  );
+                })}
                 {inRange.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-4 py-8 text-center text-[var(--text-dim)]">

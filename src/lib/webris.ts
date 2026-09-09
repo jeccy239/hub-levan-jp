@@ -6,6 +6,7 @@
 
 export type WebrisOrganization = {
   id: string;
+  accountType: "company" | "manager";
   name: string;
   websiteUrl: string | null;
   planCode: string;

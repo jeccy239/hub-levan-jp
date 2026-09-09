@@ -84,6 +84,7 @@ export default async function WebrisCustomersPage({
 
   const byPlan = new Map<string, { planName: string; count: number; monthlyPriceJpy: number }>();
   for (const org of organizations) {
+    if (org.accountType === "manager") continue; // 管理者アカウントにはプランが無いので集計から除外
     const entry = byPlan.get(org.planCode) ?? { planName: org.planName, count: 0, monthlyPriceJpy: org.monthlyPriceJpy };
     entry.count += 1;
     byPlan.set(org.planCode, entry);
@@ -98,8 +99,12 @@ export default async function WebrisCustomersPage({
   // Freeと表示される」ことになるため、同じメールの中で最も高額な契約を
   // 持つ組織を「契約主体」とみなし、その他の組織にはその契約の
   // プラン・月額・ステータスを表示する。
+  // 契約の紐付けは「企業アカウント（＝Organization）」同士の間でのみ意味を
+  // 持つ。管理者アカウントはまだどの組織にも参加していない状態のユーザー
+  // で、契約という概念自体がまだ存在しないため、この束ね処理には含めない。
   const orgsByOwnerEmail = new Map<string, WebrisOrg[]>();
   for (const org of organizations) {
+    if (org.accountType === "manager") continue;
     const list = orgsByOwnerEmail.get(org.ownerEmail) ?? [];
     list.push(org);
     orgsByOwnerEmail.set(org.ownerEmail, list);
@@ -115,9 +120,19 @@ export default async function WebrisCustomersPage({
   }
 
   function resolveContract(org: WebrisOrg): WebrisOrg {
+    if (org.accountType === "manager") return org; // 管理者アカウントは契約の束ね対象外
     if (org.monthlyPriceJpy > 0) return org; // 自身が課金契約なら、そのまま
     return contractOrgByEmail.get(org.ownerEmail) ?? org;
   }
+
+  const ACCOUNT_TYPE_BADGE: Record<WebrisOrg["accountType"], string> = {
+    company: "bg-[var(--accent-tint)] text-[var(--accent-strong)]",
+    manager: "bg-[var(--gold-tint)] text-[var(--gold)]",
+  };
+  const ACCOUNT_TYPE_LABEL: Record<WebrisOrg["accountType"], string> = {
+    company: "企業アカウント",
+    manager: "管理者アカウント",
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10 space-y-8">
@@ -206,15 +221,27 @@ export default async function WebrisCustomersPage({
               </thead>
               <tbody>
                 {inRange.map((org) => {
+                  const isManager = org.accountType === "manager";
                   const contract = resolveContract(org);
-                  const isChildOfContract = contract.id !== org.id;
+                  const isChildOfContract = !isManager && contract.id !== org.id;
                   return (
                     <tr key={org.id} className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--surface-2)] transition-colors">
                       <td className="px-4 py-3">
-                        <Link href={`/webris/${contract.id}`} className="font-medium text-[var(--text)] hover:text-[var(--accent)]">
-                          {contract.name}
-                        </Link>
-                        {contract.websiteUrl && <div className="text-xs text-[var(--text-dim)]">{contract.websiteUrl}</div>}
+                        <div className="flex items-center gap-2">
+                          {isManager ? (
+                            <span className="font-medium text-[var(--text)]">{org.name}</span>
+                          ) : (
+                            <Link href={`/webris/${contract.id}`} className="font-medium text-[var(--text)] hover:text-[var(--accent)]">
+                              {contract.name}
+                            </Link>
+                          )}
+                          <span
+                            className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-medium ${ACCOUNT_TYPE_BADGE[org.accountType]}`}
+                          >
+                            {ACCOUNT_TYPE_LABEL[org.accountType]}
+                          </span>
+                        </div>
+                        {!isManager && contract.websiteUrl && <div className="text-xs text-[var(--text-dim)]">{contract.websiteUrl}</div>}
                         {isChildOfContract && (
                           <div className="text-xs text-[var(--accent)] mt-1">
                             運用サイト：{org.name}
@@ -226,20 +253,26 @@ export default async function WebrisCustomersPage({
                         <div>{org.ownerName ?? "—"}</div>
                         <div className="text-xs">{org.ownerEmail}</div>
                       </td>
-                      <td className="px-4 py-3 text-[var(--text)]">{contract.planName}</td>
-                      <td className="px-4 py-3 tabular-nums text-[var(--text)]">{formatYen(contract.monthlyPriceJpy)}</td>
+                      <td className="px-4 py-3 text-[var(--text)]">{isManager ? "—" : contract.planName}</td>
+                      <td className="px-4 py-3 tabular-nums text-[var(--text)]">{isManager ? "—" : formatYen(contract.monthlyPriceJpy)}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span
-                          className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium ${
-                            contract.subscriptionStatus ? (STATUS_STYLE[contract.subscriptionStatus] ?? "") : "bg-[var(--surface-2)] text-[var(--text-dim)]"
-                          }`}
-                        >
-                          {contract.subscriptionStatus ? (SUBSCRIPTION_STATUS_LABEL[contract.subscriptionStatus] ?? contract.subscriptionStatus) : "無料プラン"}
-                        </span>
+                        {isManager ? (
+                          <span className="inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--surface-2)] text-[var(--text-dim)]">
+                            組織未参加
+                          </span>
+                        ) : (
+                          <span
+                            className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium ${
+                              contract.subscriptionStatus ? (STATUS_STYLE[contract.subscriptionStatus] ?? "") : "bg-[var(--surface-2)] text-[var(--text-dim)]"
+                            }`}
+                          >
+                            {contract.subscriptionStatus ? (SUBSCRIPTION_STATUS_LABEL[contract.subscriptionStatus] ?? contract.subscriptionStatus) : "無料プラン"}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-[var(--text-dim)]">{new Date(org.createdAt).toLocaleDateString("ja-JP")}</td>
                       <td className="px-4 py-3 text-[var(--text-dim)]">
-                      {contract.currentPeriodEnd ? new Date(contract.currentPeriodEnd).toLocaleDateString("ja-JP") : "—"}
+                      {!isManager && contract.currentPeriodEnd ? new Date(contract.currentPeriodEnd).toLocaleDateString("ja-JP") : "—"}
                     </td>
                     </tr>
                   );

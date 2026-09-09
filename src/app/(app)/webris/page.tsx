@@ -91,10 +91,10 @@ export default async function WebrisCustomersPage({
   // （例: gi@rojam.jp が株式会社ROJAMとROJAMオンラインの両方を運用）。
   // 一覧に同じメールが別々の行で出ると「重複データ」に見えてしまうため、
   // 各行の担当者欄に「このアカウントが他に運用している組織」を添える。
-  const orgsByOwnerEmail = new Map<string, { id: string; name: string }[]>();
+  const orgsByOwnerEmail = new Map<string, { id: string; name: string; planName: string }[]>();
   for (const org of organizations) {
     const list = orgsByOwnerEmail.get(org.ownerEmail) ?? [];
-    list.push({ id: org.id, name: org.name });
+    list.push({ id: org.id, name: org.name, planName: org.planName });
     orgsByOwnerEmail.set(org.ownerEmail, list);
   }
 
@@ -200,7 +200,7 @@ export default async function WebrisCustomersPage({
                         if (others.length === 0) return null;
                         return (
                           <div className="text-xs text-[var(--accent)] mt-1">
-                            管理アカウント：他に{others.map((o) => o.name).join("・")}も運用中
+                            管理アカウント：他に{others.map((o) => `${o.name}（${o.planName}）`).join("・")}も運用中
                           </div>
                         );
                       })()}

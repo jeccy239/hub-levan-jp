@@ -87,6 +87,17 @@ export default async function WebrisCustomersPage({
   }
   const planSummaries = [...byPlan.values()].sort((a, b) => a.monthlyPriceJpy - b.monthlyPriceJpy);
 
+  // 同じ担当者アカウント（メール）が複数の組織を運用しているケースがある
+  // （例: gi@rojam.jp が株式会社ROJAMとROJAMオンラインの両方を運用）。
+  // 一覧に同じメールが別々の行で出ると「重複データ」に見えてしまうため、
+  // 各行の担当者欄に「このアカウントが他に運用している組織」を添える。
+  const orgsByOwnerEmail = new Map<string, { id: string; name: string }[]>();
+  for (const org of organizations) {
+    const list = orgsByOwnerEmail.get(org.ownerEmail) ?? [];
+    list.push({ id: org.id, name: org.name });
+    orgsByOwnerEmail.set(org.ownerEmail, list);
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-6 py-10 space-y-8">
       <div>
@@ -184,6 +195,15 @@ export default async function WebrisCustomersPage({
                     <td className="px-4 py-3 text-[var(--text-dim)]">
                       <div>{org.ownerName ?? "—"}</div>
                       <div className="text-xs">{org.ownerEmail}</div>
+                      {(() => {
+                        const others = (orgsByOwnerEmail.get(org.ownerEmail) ?? []).filter((o) => o.id !== org.id);
+                        if (others.length === 0) return null;
+                        return (
+                          <div className="text-xs text-[var(--accent)] mt-1">
+                            管理アカウント：他に{others.map((o) => o.name).join("・")}も運用中
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-[var(--text)]">{org.planName}</td>
                     <td className="px-4 py-3 tabular-nums text-[var(--text)]">{formatYen(org.monthlyPriceJpy)}</td>

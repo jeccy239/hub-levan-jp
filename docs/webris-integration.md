@@ -166,6 +166,26 @@ LEVAN HUBの顧客詳細画面には「シークレットプランに変更」�
 
 手動確認: `GET https://hub.levan.jp/api/cron/webris-contracts?key=<CRON_SECRET>`
 
+## ブログ管理（実装済み）
+
+`webris.levan.jp/blog` に載せる記事を HUB から作成・公開する。WEBRIS 側の API 仕様は
+WEBRIS リポジトリの `docs/webris-blog-integration.md`（`GET/POST /api/levanhub/blog`,
+`GET/PATCH/DELETE /api/levanhub/blog/{id}`）。認証は他の `/api/levanhub/*` と同じ
+`WEBRIS_API_SECRET`。
+
+- API クライアント: [src/lib/webrisBlog.ts](../src/lib/webrisBlog.ts)
+- 画面: [src/app/(app)/blog/](<../src/app/(app)/blog>)
+  - `/blog` 一覧（すべて/下書き/公開中フィルタ、行から公開⇄下書き切替・削除・公開ページ表示）
+  - `/blog/new` 新規作成、`/blog/{id}` 編集（Markdown ライブプレビュー付き）
+- Server Actions（[src/app/(app)/blog/actions.ts](<../src/app/(app)/blog/actions.ts>)）:
+  作成・更新・公開切替は `requireApprover()`、削除は `requireAdmin()`。すべて `AuditLog` に記録
+  （`blog.create` / `blog.update` / `blog.publish` / `blog.unpublish` / `blog.delete`）。
+- アイキャッチ画像は HUB が **Vercel Blob** にアップロードし、その公開 URL を
+  `coverImageUrl` として WEBRIS に渡す（[src/lib/blobUpload.ts](../src/lib/blobUpload.ts)）。
+  環境変数 `BLOB_READ_WRITE_TOKEN` が必要（Vercel で Blob ストアを作成すると自動追加）。
+  未設定でも記事は作れるが画像アップロードだけ使えない。
+- Server Action の body 上限を `next.config.ts` で 10MB に拡張（画像アップロード用）。
+
 ## 将来の拡張候補
 
 - プラン変更・強制解約などの書き込み操作（別エンドポイント、同じ認証方式）

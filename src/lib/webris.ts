@@ -29,7 +29,7 @@ export type WebrisOrganization = {
 export class WebrisNotConfiguredError extends Error {}
 export class WebrisApiError extends Error {}
 
-function getConfig() {
+export function getWebrisConfig() {
   const baseUrl = process.env.WEBRIS_API_URL;
   const secret = process.env.WEBRIS_API_SECRET;
   if (!baseUrl || !secret) {
@@ -41,7 +41,7 @@ function getConfig() {
 }
 
 export async function fetchWebrisOrganizations(): Promise<WebrisOrganization[]> {
-  const { baseUrl, secret } = getConfig();
+  const { baseUrl, secret } = getWebrisConfig();
 
   let response: Response;
   try {
@@ -77,7 +77,7 @@ export type WebrisPaymentMethod = {
 } | null;
 
 async function webrisFetch(path: string, init?: RequestInit) {
-  const { baseUrl, secret } = getConfig();
+  const { baseUrl, secret } = getWebrisConfig();
   let response: Response;
   try {
     response = await fetch(`${baseUrl}${path}`, {

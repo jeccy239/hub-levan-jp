@@ -143,6 +143,19 @@ LEVAN HUBの顧客詳細画面には「シークレットプランに変更」�
 - 管理者アカウント（招待コード参加）は「契約」ではないので通知しない（行だけ作る）。
 - メール送信は既存の Resend 連携（`RESEND_API_KEY` / `MAIL_FROM`）を使う。
 
+### 新規登録者への自動サンクスメール（同じcronから送信）
+
+同じ検知タイミングで、**登録者本人**へサンクス＋プラン案内メールを送る（既定は無効）。
+
+- 有効/無効と文面は `/sales-ai/compose` 上部の「新規登録者への自動サンクスメール」
+  パネルで編集（`AppSetting` テーブルに保存）。プレビュー・テスト送信も同パネルから。
+- 既定文面は [src/lib/thanksEmailTemplate.ts](../src/lib/thanksEmailTemplate.ts)。
+  `hero_01.jpg` を使い、スタンダード / プロ / ビジネス各プランへ誘導する。
+  料金はコードに直書き（¥3,800 / ¥19,800 / ¥38,000）— WEBRISの実価格と違えば要修正。
+- 差込変数は `{{company}}` `{{sender}}` `{{webris_url}}` `{{company_address}}` のみ
+  （登録直後に確実に取れる値）。`{{sender}}` は環境変数 `SUPPORT_SENDER_NAME`（既定「サポート担当」）。
+- 送信結果は `WebrisContractNotice.thanksEmailStatus` に記録。
+
 ### 必要な環境変数（Vercel / Production）
 
 | 変数 | 用途 |

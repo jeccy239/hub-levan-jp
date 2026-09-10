@@ -120,6 +120,8 @@ export default async function WebrisCustomersPage({
   };
   const inRange = organizations.filter(inPeriod);
   const displayedRevenue = inRange.reduce((sum, org) => sum + org.monthlyPriceJpy, 0);
+  const inRangeCompany = inRange.filter((o) => o.accountType !== "manager").length;
+  const inRangeManager = inRange.filter((o) => o.accountType === "manager").length;
 
   const byPlan = new Map<string, { planName: string; count: number; monthlyPriceJpy: number }>();
   for (const org of organizations) {
@@ -275,8 +277,19 @@ export default async function WebrisCustomersPage({
                     ? "全期間に契約した顧客"
                     : `表示中の期間（${new Date(from!).toLocaleDateString("ja-JP")} 〜 ${new Date(to!).toLocaleDateString("ja-JP")}）に契約した顧客`}
                 </div>
-                <div className="text-xl font-semibold tabular-nums text-[var(--text)] mt-1">
-                  {inRange.length.toLocaleString("ja-JP")}社
+                <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 mt-1">
+                  <div className="text-xl font-semibold tabular-nums text-[var(--text)]">
+                    {inRange.length.toLocaleString("ja-JP")}
+                    <span className="text-xs font-normal text-[var(--text-dim)] ml-1">全て</span>
+                  </div>
+                  <div className="text-base font-semibold tabular-nums text-[var(--text)]">
+                    {inRangeCompany.toLocaleString("ja-JP")}
+                    <span className="text-xs font-normal text-[var(--text-dim)] ml-1">企業アカウント</span>
+                  </div>
+                  <div className="text-base font-semibold tabular-nums text-[var(--text)]">
+                    {inRangeManager.toLocaleString("ja-JP")}
+                    <span className="text-xs font-normal text-[var(--text-dim)] ml-1">管理者アカウント</span>
+                  </div>
                 </div>
               </div>
               <div className="text-right">

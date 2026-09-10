@@ -109,6 +109,26 @@ LEVAN HUBは素の `<img>` で読み込むため、画像ホストにCORS設定�
    - LEVAN HUB: `WEBRIS_API_SECRET`（Vercelの環境変数）
 3. LEVAN HUBの `/webris` 画面でエラーが出なくなれば連携完了
 
+## テスト用「シークレットプラン」（WEBRIS側の対応が必要）
+
+LEVAN HUBの顧客詳細画面には「シークレットプランに変更」ボタンがある。これは
+`POST /api/levanhub/organizations/{id}/plan` に `{ "planCode": "secret" }` を送るだけ。
+
+現状のWEBRIS実装は、Stripeサブスクリプションが有効なOrganizationしかプラン変更
+できない（`subscription.update` を呼ぶため）。シークレットプランは**未課金・解約済み
+のOrganizationにこそ使いたい**ので、WEBRIS側で以下の特別扱いを実装してほしい:
+
+- `planCode === "secret"` のときは **Stripeを一切呼ばず**、DBの
+  `organization.planCode` を直接 `"secret"` に更新する（必要なら
+  `subscriptionStatus` を `"active"` などテスト用の値にする）。
+- `"secret"` から `"free"` へ戻すリクエスト（HUBの「通常プランに戻す」ボタン）も
+  同様にStripe非経由でDB更新のみ。
+- シークレットプランの内容（利用可能サイト数・キーワード上限など）はWEBRIS側で
+  自由に定義してよい。顧客のプラン選択UIには出さないこと。
+
+これが入るまでは、Freeや解約済みアカウントに対してボタンを押すと
+「このOrganizationはStripe課金中ではないため…」というエラーがHUB画面に表示される。
+
 ## 将来の拡張候補
 
 - プラン変更・強制解約などの書き込み操作（別エンドポイント、同じ認証方式）

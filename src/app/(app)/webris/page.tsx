@@ -13,6 +13,12 @@ type WebrisOrg = WebrisOrganization;
 
 export const dynamic = "force-dynamic";
 
+const ROLE_LABEL: Record<string, string> = {
+  OWNER: "オーナー",
+  EDITOR: "編集者",
+  VIEWER: "閲覧者",
+};
+
 const SUBSCRIPTION_STATUS_LABEL: Record<string, string> = {
   active: "有効",
   trialing: "トライアル中",
@@ -224,6 +230,7 @@ export default async function WebrisCustomersPage({
                   const isManager = org.accountType === "manager";
                   const contract = resolveContract(org);
                   const isChildOfContract = !isManager && contract.id !== org.id;
+                  const memberships = isManager ? (org.memberships ?? []) : [];
                   return (
                     <tr key={org.id} className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--surface-2)] transition-colors">
                       <td className="px-4 py-3">
@@ -248,6 +255,26 @@ export default async function WebrisCustomersPage({
                             {org.websiteUrl && `（${org.websiteUrl}）`}
                           </div>
                         )}
+                        {isManager && (
+                          <div className="text-xs text-[var(--text-dim)] mt-1">
+                            {memberships.length > 0 ? (
+                              <>
+                                加入組織：
+                                {memberships.map((m, i) => (
+                                  <span key={m.organizationId}>
+                                    {i > 0 && "、"}
+                                    <Link href={`/webris/${m.organizationId}`} className="text-[var(--accent)] hover:underline">
+                                      {m.organizationName}
+                                    </Link>
+                                    （{ROLE_LABEL[m.role] ?? m.role}）
+                                  </span>
+                                ))}
+                              </>
+                            ) : (
+                              "加入組織なし（招待コード待ち）"
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-[var(--text-dim)]">
                         <div>{org.ownerName ?? "—"}</div>
@@ -257,8 +284,14 @@ export default async function WebrisCustomersPage({
                       <td className="px-4 py-3 tabular-nums text-[var(--text)]">{isManager ? "—" : formatYen(contract.monthlyPriceJpy)}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         {isManager ? (
-                          <span className="inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--surface-2)] text-[var(--text-dim)]">
-                            組織未参加
+                          <span
+                            className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium ${
+                              memberships.length > 0
+                                ? "bg-[var(--accent-tint)] text-[var(--accent-strong)]"
+                                : "bg-[var(--surface-2)] text-[var(--text-dim)]"
+                            }`}
+                          >
+                            {memberships.length > 0 ? `${memberships.length}組織に加入` : "組織未参加"}
                           </span>
                         ) : (
                           <span

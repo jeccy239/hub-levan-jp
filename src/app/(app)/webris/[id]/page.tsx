@@ -38,10 +38,13 @@ const primaryButton =
 
 export default async function WebrisCustomerDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ planError?: string; planOk?: string }>;
 }) {
   const { id } = await params;
+  const { planError, planOk } = await searchParams;
 
   let org;
   let managers: Awaited<ReturnType<typeof fetchWebrisOrganizations>> = [];
@@ -128,6 +131,17 @@ export default async function WebrisCustomerDetailPage({
           )
         )}
       </div>
+
+      {planError && (
+        <div className="border border-[var(--danger)]/30 bg-[var(--danger-tint)] rounded-2xl p-4 text-sm text-[var(--text)]">
+          プラン変更に失敗しました: {planError}
+        </div>
+      )}
+      {planOk && (
+        <div className="border border-[var(--accent)]/30 bg-[var(--accent-tint)] rounded-2xl p-4 text-sm text-[var(--text)]">
+          プランを変更しました。反映まで数秒かかる場合があります。
+        </div>
+      )}
 
       {isManager ? (
         <>

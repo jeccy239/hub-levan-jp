@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin, requireApprover } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
-import { changeWebrisPlan, cancelWebrisSubscription, deleteWebrisOrganization } from "@/lib/webris";
+import {
+  changeWebrisPlan,
+  cancelWebrisSubscription,
+  deleteWebrisOrganization,
+  WebrisApiError,
+  WebrisNotConfiguredError,
+} from "@/lib/webris";
 import { prisma } from "@/lib/prisma";
 
 export async function changePlanAction(formData: FormData) {
@@ -13,7 +19,19 @@ export async function changePlanAction(formData: FormData) {
   const planCode = String(formData.get("planCode") ?? "");
   if (!orgId || !planCode) return;
 
-  await changeWebrisPlan(orgId, planCode);
+  try {
+    await changeWebrisPlan(orgId, planCode);
+  } catch (e) {
+    // WEBRIS 側が未知のプランコードを弾いた等。500 で画面を落とさず、
+    // 詳細画面にエラー内容を表示して戻す。
+    const message =
+      e instanceof WebrisApiError || e instanceof WebrisNotConfiguredError
+        ? e.message
+        : "プラン変更に失敗しました。";
+    revalidatePath(`/webris/${orgId}`);
+    redirect(`/webris/${orgId}?planError=${encodeURIComponent(message)}`);
+  }
+
   await logAudit({
     userId: user.id,
     action: "webris.plan_change",
@@ -22,6 +40,7 @@ export async function changePlanAction(formData: FormData) {
     detail: { planCode },
   });
   revalidatePath(`/webris/${orgId}`);
+  redirect(`/webris/${orgId}?planOk=1`);
 }
 
 export async function cancelSubscriptionAction(formData: FormData) {

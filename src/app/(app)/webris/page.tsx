@@ -9,6 +9,7 @@ import {
 import type { WebrisOrganization } from "@/lib/webris";
 import { formatYen } from "@/lib/labels";
 import Avatar from "@/components/Avatar";
+import { faviconUrl, gravatarUrl } from "@/lib/avatar";
 
 type WebrisOrg = WebrisOrganization;
 
@@ -284,32 +285,48 @@ export default async function WebrisCustomersPage({
             </div>
           </section>
 
+          {/* 種別切り替え */}
+          <div className="inline-flex flex-wrap gap-1 p-1 rounded-full bg-black/[0.05] backdrop-blur-xl backdrop-saturate-150 border border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.5),0_1px_2px_rgba(0,0,0,0.04)]">
+            {[
+              { value: "", label: "すべて" },
+              { value: "company", label: "企業アカウント" },
+              { value: "manager", label: "管理者アカウント" },
+            ].map((t) => {
+              const isActive = typeFilter === t.value;
+              return (
+                <Link
+                  key={t.value || "all"}
+                  href={`/webris${buildQuery({ ...currentParams, type: t.value || undefined })}`}
+                  className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all duration-200 ${
+                    isActive
+                      ? "bg-white/70 text-[var(--text)] backdrop-blur-xl shadow-[0_1px_3px_rgba(0,0,0,0.12)]"
+                      : "text-[var(--text-dim)] hover:bg-white/30 hover:text-[var(--text)]"
+                  }`}
+                >
+                  {t.label}
+                </Link>
+              );
+            })}
+          </div>
+
           {/* 検索・絞り込み */}
           <form method="get" className="border border-[var(--line)] rounded-2xl bg-[var(--surface)] shadow-sm p-4 space-y-3">
             {isAllTime && <input type="hidden" name="from" value="all" />}
             {!isAllTime && from && <input type="hidden" name="from" value={from} />}
             {!isAllTime && to && <input type="hidden" name="to" value={to} />}
+            {typeFilter && <input type="hidden" name="type" value={typeFilter} />}
 
             <div className="flex flex-wrap gap-3">
               <input
                 name="q"
                 defaultValue={search}
                 placeholder="アカウント名・担当者名・メールで検索"
-                className="flex-1 min-w-[220px] border border-[var(--line)] rounded-xl px-3.5 py-2 text-sm bg-[var(--surface)] text-[var(--text)] placeholder:text-[var(--text-dim)]"
+                className="flex-1 min-w-[220px] border border-[var(--line)] rounded-xl px-3.5 py-2 text-xs bg-[var(--surface)] text-[var(--text)] placeholder:text-[var(--text-dim)]"
               />
-              <select
-                name="type"
-                defaultValue={typeFilter}
-                className="border border-[var(--line)] rounded-xl px-3 py-2 text-sm bg-[var(--surface)] text-[var(--text)]"
-              >
-                <option value="">すべての種別</option>
-                <option value="company">企業アカウント</option>
-                <option value="manager">管理者アカウント</option>
-              </select>
               <select
                 name="plan"
                 defaultValue={planFilter}
-                className="border border-[var(--line)] rounded-xl px-3 py-2 text-sm bg-[var(--surface)] text-[var(--text)]"
+                className="border border-[var(--line)] rounded-xl px-3 py-2 text-xs bg-[var(--surface)] text-[var(--text)]"
               >
                 <option value="">すべてのプラン</option>
                 {planFilterOptions.map((p) => (
@@ -320,14 +337,14 @@ export default async function WebrisCustomersPage({
               </select>
               <button
                 type="submit"
-                className="text-sm bg-[var(--accent)] hover:bg-[var(--accent-strong)] text-white rounded-xl px-4 py-2 font-medium shadow-sm"
+                className="text-xs bg-[var(--accent)] hover:bg-[var(--accent-strong)] text-white rounded-xl px-4 py-2 font-medium shadow-sm"
               >
                 絞り込み
               </button>
               {filtersActive && (
                 <Link
                   href={`/webris${buildQuery(periodParam)}`}
-                  className="text-sm text-[var(--text-dim)] hover:text-[var(--text)] rounded-xl px-4 py-2 font-medium"
+                  className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] rounded-xl px-4 py-2 font-medium"
                 >
                   クリア
                 </Link>
@@ -336,18 +353,18 @@ export default async function WebrisCustomersPage({
           </form>
 
           <div className="overflow-x-auto border border-[var(--line)] rounded-2xl bg-[var(--surface)] shadow-sm">
-            <table className="w-full text-xs">
+            <table className="w-full text-[11px]">
               <thead>
-                <tr className="text-left text-[11px] font-medium tracking-wide text-[var(--text-dim)] border-b border-[var(--line)]">
-                  <th className="px-3 py-2.5">アカウント名（契約名）</th>
-                  <th className="px-3 py-2.5 whitespace-nowrap">種別</th>
-                  <th className="px-3 py-2.5">担当者</th>
-                  <th className="px-3 py-2.5">プラン</th>
-                  <th className="px-3 py-2.5">月額</th>
-                  <th className="px-3 py-2.5 whitespace-nowrap">ステータス</th>
-                  <th className="px-3 py-2.5 whitespace-nowrap">契約日</th>
-                  <th className="px-3 py-2.5 whitespace-nowrap">次回更新日</th>
-                  <th className="px-3 py-2.5"></th>
+                <tr className="text-left text-[10px] font-medium tracking-wide text-[var(--text-dim)] border-b border-[var(--line)]">
+                  <th className="px-3 py-2">アカウント名（契約名）</th>
+                  <th className="px-3 py-2 whitespace-nowrap">種別</th>
+                  <th className="px-3 py-2">担当者</th>
+                  <th className="px-3 py-2">プラン</th>
+                  <th className="px-3 py-2">月額</th>
+                  <th className="px-3 py-2 whitespace-nowrap">ステータス</th>
+                  <th className="px-3 py-2 whitespace-nowrap">契約日</th>
+                  <th className="px-3 py-2 whitespace-nowrap">次回更新日</th>
+                  <th className="px-3 py-2"></th>
                 </tr>
               </thead>
               <tbody>
@@ -357,28 +374,31 @@ export default async function WebrisCustomersPage({
                   const isChildOfContract = !isManager && contract.id !== org.id;
                   const memberships = isManager ? (org.memberships ?? []) : [];
                   const detailId = isManager ? org.id : contract.id;
-                  const avatarSrc = isManager
-                    ? org.ownerAvatarUrl ?? null
-                    : contract.logoUrl ?? null;
+                  // アカウント名のアイコン：企業はロゴ→サイトfavicon、管理者は
+                  // 本人アバター→Gravatar。すべて失敗したら頭文字。
+                  const nameAvatarSrcs = isManager
+                    ? [org.ownerAvatarUrl, gravatarUrl(org.ownerEmail)]
+                    : [contract.logoUrl, faviconUrl(contract.websiteUrl)];
                   const avatarName = isManager ? org.ownerName ?? org.name : contract.name;
+                  const ownerAvatarSrcs = [org.ownerAvatarUrl, gravatarUrl(org.ownerEmail)];
                   return (
                     <tr key={org.id} className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--surface-2)] transition-colors">
-                      <td className="px-3 py-2.5">
+                      <td className="px-3 py-2">
                         <div className="flex items-start gap-2.5">
-                          <Avatar src={avatarSrc} name={avatarName} size={28} />
+                          <Avatar srcs={nameAvatarSrcs} name={avatarName} size={26} />
                           <div className="min-w-0">
                             <Link href={`/webris/${detailId}`} className="font-medium text-[var(--text)] hover:text-[var(--accent)]">
                               {isManager ? org.name : contract.name}
                             </Link>
-                            {!isManager && contract.websiteUrl && <div className="text-[11px] text-[var(--text-dim)]">{contract.websiteUrl}</div>}
+                            {!isManager && contract.websiteUrl && <div className="text-[10px] text-[var(--text-dim)]">{contract.websiteUrl}</div>}
                             {isChildOfContract && (
-                              <div className="text-[11px] text-[var(--accent)] mt-0.5">
+                              <div className="text-[10px] text-[var(--accent)] mt-0.5">
                                 運用サイト：{org.name}
                                 {org.websiteUrl && `（${org.websiteUrl}）`}
                               </div>
                             )}
                             {isManager && (
-                              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">
+                              <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
                                 {memberships.length > 0 ? (
                                   <>
                                     加入組織：
@@ -400,28 +420,28 @@ export default async function WebrisCustomersPage({
                           </div>
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 whitespace-nowrap">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <span
-                          className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-medium ${ACCOUNT_TYPE_BADGE[org.accountType]}`}
+                          className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-medium ${ACCOUNT_TYPE_BADGE[org.accountType]}`}
                         >
                           {ACCOUNT_TYPE_LABEL[org.accountType]}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 text-[var(--text-dim)]">
+                      <td className="px-3 py-2 text-[var(--text-dim)]">
                         <div className="flex items-center gap-2">
-                          <Avatar src={org.ownerAvatarUrl ?? null} name={org.ownerName ?? org.ownerEmail} size={20} />
+                          <Avatar srcs={ownerAvatarSrcs} name={org.ownerName ?? org.ownerEmail} size={20} />
                           <div className="min-w-0">
                             <div className="text-[var(--text)]">{org.ownerName ?? "—"}</div>
-                            <div className="text-[11px] truncate">{org.ownerEmail}</div>
+                            <div className="text-[10px] truncate">{org.ownerEmail}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 text-[var(--text)]">{isManager ? "—" : contract.planName}</td>
-                      <td className="px-3 py-2.5 tabular-nums text-[var(--text)]">{isManager ? "—" : formatYen(contract.monthlyPriceJpy)}</td>
-                      <td className="px-3 py-2.5 whitespace-nowrap">
+                      <td className="px-3 py-2 text-[var(--text)]">{isManager ? "—" : contract.planName}</td>
+                      <td className="px-3 py-2 tabular-nums text-[var(--text)]">{isManager ? "—" : formatYen(contract.monthlyPriceJpy)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">
                         {isManager ? (
                           <span
-                            className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                            className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-medium ${
                               memberships.length > 0
                                 ? "bg-[var(--accent-tint)] text-[var(--accent-strong)]"
                                 : "bg-[var(--surface-2)] text-[var(--text-dim)]"
@@ -431,7 +451,7 @@ export default async function WebrisCustomersPage({
                           </span>
                         ) : (
                           <span
-                            className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                            className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-medium ${
                               contract.subscriptionStatus ? (STATUS_STYLE[contract.subscriptionStatus] ?? "") : "bg-[var(--surface-2)] text-[var(--text-dim)]"
                             }`}
                           >
@@ -439,16 +459,16 @@ export default async function WebrisCustomersPage({
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2.5 text-[var(--text-dim)] whitespace-nowrap">{new Date(org.createdAt).toLocaleDateString("ja-JP")}</td>
-                      <td className="px-3 py-2.5 text-[var(--text-dim)] whitespace-nowrap">
+                      <td className="px-3 py-2 text-[var(--text-dim)] whitespace-nowrap">{new Date(org.createdAt).toLocaleDateString("ja-JP")}</td>
+                      <td className="px-3 py-2 text-[var(--text-dim)] whitespace-nowrap">
                         {!isManager && contract.currentPeriodEnd ? new Date(contract.currentPeriodEnd).toLocaleDateString("ja-JP") : "—"}
                       </td>
-                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
                         <Link
                           href={`/webris/${detailId}`}
-                          className="inline-block text-[11px] font-medium rounded-lg px-2.5 py-1 bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--line)]"
+                          className="inline-block text-[11px] font-semibold rounded-lg px-3 py-1.5 bg-[var(--accent)] text-white hover:bg-[var(--accent-strong)] shadow-sm"
                         >
-                          詳細
+                          詳細を見る
                         </Link>
                       </td>
                     </tr>

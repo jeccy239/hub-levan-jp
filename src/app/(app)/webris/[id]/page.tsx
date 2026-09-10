@@ -12,6 +12,7 @@ import CancelSubscriptionForm from "./CancelSubscriptionForm";
 import DeleteAccountForm from "./DeleteAccountForm";
 import { prisma } from "@/lib/prisma";
 import Avatar from "@/components/Avatar";
+import { faviconUrl, gravatarUrl } from "@/lib/avatar";
 
 export const dynamic = "force-dynamic";
 
@@ -90,7 +91,11 @@ export default async function WebrisCustomerDetailPage({
         </Link>
         <div className="flex items-start gap-3 mt-2">
           <Avatar
-            src={(isManager ? org.ownerAvatarUrl : org.logoUrl) ?? null}
+            srcs={
+              isManager
+                ? [org.ownerAvatarUrl, gravatarUrl(org.ownerEmail)]
+                : [org.logoUrl, faviconUrl(org.websiteUrl)]
+            }
             name={isManager ? org.ownerName ?? org.name : org.name}
             size={44}
           />
@@ -192,7 +197,7 @@ export default async function WebrisCustomerDetailPage({
                   return (
                     <li key={m.id} className="py-2 flex items-center justify-between gap-3">
                       <Link href={`/webris/${m.id}`} className="flex items-center gap-2 min-w-0 hover:text-[var(--accent)]">
-                        <Avatar src={m.ownerAvatarUrl ?? null} name={m.ownerName ?? m.ownerEmail} size={24} />
+                        <Avatar srcs={[m.ownerAvatarUrl, gravatarUrl(m.ownerEmail)]} name={m.ownerName ?? m.ownerEmail} size={24} />
                         <span className="text-[var(--accent)] truncate">
                           {m.ownerName ?? "—"}
                           <span className="text-xs text-[var(--text-dim)] ml-2">{m.ownerEmail}</span>

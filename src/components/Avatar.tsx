@@ -1,8 +1,15 @@
-// 顧客アカウントのプロフィールアイコン。画像URLが渡されればそれを、無ければ
-// 名前の頭文字を使った色付きの丸を表示する（サーバーコンポーネント）。
-// 外部（WEBRIS等）の任意オリジンの画像を扱うため next/image ではなく素の
-// <img> を使う — 32px程度のアイコンに最適化は不要で、next.config の
-// remotePatterns にWEBRIS側の保存先ドメインを結びつけずに済む。
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
+// 顧客アカウントのプロフィールアイコン。候補URLを順に試し（WEBRISのロゴ →
+// サイトのfavicon / Gravatar など）、すべて読み込めなければ名前の頭文字を
+// 使った色付きの丸を表示する。外部の任意オリジンの画像を扱うため
+// next/image ではなく素の <img> を使う。
+//
+// SSRで既に404済みの<img>は、ハイドレーション後に onError を再発火しない
+// ため、マウント時に complete && naturalWidth===0 を見て自前でフォール
+// バックを進める。
 
 function hashString(s: string): number {
   let h = 0;
@@ -13,26 +20,41 @@ function hashString(s: string): number {
 }
 
 export default function Avatar({
-  src,
+  srcs,
   name,
-  size = 32,
+  size = 28,
 }: {
-  src?: string | null;
+  srcs?: (string | null | undefined)[];
   name: string | null | undefined;
   size?: number;
 }) {
+  const candidates = (srcs ?? []).filter((s): s is string => Boolean(s));
+  const [failed, setFailed] = useState(0);
+  const imgRef = useRef<HTMLImageElement>(null);
+
   const label = (name ?? "").trim();
   const initial = label ? [...label][0].toUpperCase() : "?";
   const hue = hashString(label || "?") % 360;
+  const src = candidates[failed];
+
+  useEffect(() => {
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalWidth === 0) {
+      setFailed((n) => n + 1);
+    }
+  }, [src]);
 
   if (src) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
+        key={src}
+        ref={imgRef}
         src={src}
         alt={label || "アカウント"}
         width={size}
         height={size}
+        onError={() => setFailed((n) => n + 1)}
         className="shrink-0 rounded-full object-cover bg-[var(--surface-2)] border border-[var(--line)]"
         style={{ width: size, height: size }}
       />

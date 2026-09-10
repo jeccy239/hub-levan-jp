@@ -13,6 +13,7 @@ import DeleteAccountForm from "./DeleteAccountForm";
 import SecretPlanForm from "./SecretPlanForm";
 import { prisma } from "@/lib/prisma";
 import Avatar from "@/components/Avatar";
+import PlanBadge from "@/components/PlanBadge";
 import { faviconUrl, gravatarUrl } from "@/lib/avatar";
 
 export const dynamic = "force-dynamic";
@@ -181,8 +182,9 @@ export default async function WebrisCustomerDetailPage({
             <div className="text-[var(--text)]">
               担当者: {org.ownerName ?? "—"}（{org.ownerEmail}）
             </div>
-            <div className="text-[var(--text)]">
-              現在のプラン: <strong>{org.planName}</strong>（{formatYen(org.monthlyPriceJpy)}/月）
+            <div className="flex items-center gap-2 text-[var(--text)]">
+              現在のプラン: <PlanBadge code={org.planCode} label={org.planName} />
+              <span className="text-[var(--text-dim)]">（{formatYen(org.monthlyPriceJpy)}/月）</span>
             </div>
             <div className="text-[var(--text)]">契約日: {new Date(org.createdAt).toLocaleDateString("ja-JP")}</div>
             <div className="text-[var(--text)]">
@@ -265,7 +267,7 @@ export default async function WebrisCustomerDetailPage({
             <h2 className="font-semibold text-[var(--text)]">テスト用: シークレットプラン</h2>
             <p className="text-xs text-[var(--text-dim)]">
               動作確認用のプランです。顧客側の画面からは選択できず、この画面からのみ切り替えられます。
-              現在のプラン: <strong>{org.planName}</strong>
+              現在のプラン: <PlanBadge code={org.planCode} label={org.planName} />
               {org.planCode === "secret" && "（シークレットプラン適用中）"}
             </p>
             <SecretPlanForm orgId={org.id} isSecret={org.planCode === "secret"} />

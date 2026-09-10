@@ -8,6 +8,7 @@ import {
 } from "@/lib/webris";
 import type { WebrisOrganization } from "@/lib/webris";
 import { formatYen } from "@/lib/labels";
+import PlanBadge from "@/components/PlanBadge";
 import Avatar from "@/components/Avatar";
 import { faviconUrl, gravatarUrl } from "@/lib/avatar";
 
@@ -127,7 +128,9 @@ export default async function WebrisCustomersPage({
     entry.count += 1;
     byPlan.set(org.planCode, entry);
   }
-  const planSummaries = [...byPlan.values()].sort((a, b) => a.monthlyPriceJpy - b.monthlyPriceJpy);
+  const planSummaries = [...byPlan.entries()]
+    .map(([code, v]) => ({ code, ...v }))
+    .sort((a, b) => a.monthlyPriceJpy - b.monthlyPriceJpy);
   // プラン絞り込みのプルダウン用。契約が1件も無いプランは出さない。
   const planFilterOptions = [...byPlan.entries()]
     .map(([code, v]) => ({ code, name: v.planName, price: v.monthlyPriceJpy }))
@@ -223,8 +226,8 @@ export default async function WebrisCustomersPage({
         <>
           <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {planSummaries.map((p) => (
-              <div key={p.planName} className="border border-[var(--line)] rounded-2xl p-5 bg-[var(--surface)] shadow-sm">
-                <div className="text-xs text-[var(--text-dim)] mb-1">{p.planName}プラン</div>
+              <div key={p.code} className="border border-[var(--line)] rounded-2xl p-5 bg-[var(--surface)] shadow-sm">
+                <div className="mb-1"><PlanBadge code={p.code} label={`${p.planName}プラン`} /></div>
                 <div className="text-2xl font-semibold tabular-nums text-[var(--text)]">
                   {p.count.toLocaleString("ja-JP")}社
                 </div>
@@ -436,7 +439,9 @@ export default async function WebrisCustomersPage({
                           </div>
                         </div>
                       </td>
-                      <td className="px-3 py-2 text-[var(--text)]">{isManager ? "—" : contract.planName}</td>
+                      <td className="px-3 py-2 text-[var(--text)]">
+                        {isManager ? "—" : <PlanBadge code={contract.planCode} label={contract.planName} />}
+                      </td>
                       <td className="px-3 py-2 tabular-nums text-[var(--text)]">{isManager ? "—" : formatYen(contract.monthlyPriceJpy)}</td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         {isManager ? (

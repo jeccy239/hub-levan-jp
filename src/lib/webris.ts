@@ -121,6 +121,7 @@ export const WEBRIS_PLAN_LABEL: Record<string, string> = {
   standard: "Standard",
   pro: "Pro",
   business: "Business",
+  secret: "シークレット（テスト用）",
 };
 
 /**

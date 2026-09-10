@@ -10,6 +10,7 @@ import { formatYen } from "@/lib/labels";
 import { changePlanAction } from "../actions";
 import CancelSubscriptionForm from "./CancelSubscriptionForm";
 import DeleteAccountForm from "./DeleteAccountForm";
+import SecretPlanForm from "./SecretPlanForm";
 import { prisma } from "@/lib/prisma";
 import Avatar from "@/components/Avatar";
 import { faviconUrl, gravatarUrl } from "@/lib/avatar";
@@ -245,6 +246,16 @@ export default async function WebrisCustomerDetailPage({
               </div>
             </section>
           )}
+
+          <section className={`${card} space-y-3 border-[var(--gold)]/30 bg-[var(--gold-tint)]`}>
+            <h2 className="font-semibold text-[var(--text)]">テスト用: シークレットプラン</h2>
+            <p className="text-xs text-[var(--text-dim)]">
+              動作確認用のプランです。顧客側の画面からは選択できず、この画面からのみ切り替えられます。
+              現在のプラン: <strong>{org.planName}</strong>
+              {org.planCode === "secret" && "（シークレットプラン適用中）"}
+            </p>
+            <SecretPlanForm orgId={org.id} isSecret={org.planCode === "secret"} />
+          </section>
 
           <section className={`${card} space-y-3 border-[var(--danger)]/30`}>
             <h2 className="font-semibold text-[var(--danger)]">危険な操作</h2>

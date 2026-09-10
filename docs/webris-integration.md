@@ -136,8 +136,11 @@ LEVAN HUBの顧客詳細画面には「シークレットプランに変更」�
 
 - 実装: [src/lib/webrisContractNotify.ts](../src/lib/webrisContractNotify.ts) /
   [src/app/api/cron/webris-contracts/route.ts](../src/app/api/cron/webris-contracts/route.ts)
-- 仕組み: WEBRIS Webhookが無いため、HUBのcron（[vercel.json](../vercel.json)、15分間隔）が
-  WEBRIS APIを叩き、HUB DBの `WebrisContractNotice` テーブルと差分を取って新規分だけ通知。
+- 仕組み: WEBRIS Webhookが無いため、cronがWEBRIS APIを叩き、HUB DBの
+  `WebrisContractNotice` テーブルと差分を取って新規分だけ通知。
+  - **主トリガー**: GitHub Actions（[.github/workflows/webris-cron.yml](../.github/workflows/webris-cron.yml)、15分間隔）
+    がエンドポイントを叩く。VercelがHobbyプランでcronが1日1回に制限されるため。
+  - **フォールバック**: Vercel cron（[vercel.json](../vercel.json)、毎日 00:00 JST）。
 - **初回実行時**は既存の全Organizationを「通知済み」として取り込むだけでメールは送らない
   （一斉送信を防ぐ）。2回目以降に現れた企業アカウントが通知対象。
 - 管理者アカウント（招待コード参加）は「契約」ではないので通知しない（行だけ作る）。
@@ -160,7 +163,7 @@ LEVAN HUBの顧客詳細画面には「シークレットプランに変更」�
 
 | 変数 | 用途 |
 | --- | --- |
-| `CRON_SECRET` | cronエンドポイントの認証。Vercelが `Authorization: Bearer <値>` を自動付与。**未設定だと401で通知が動かない。** |
+| `CRON_SECRET` | cronエンドポイントの認証。**同じ値**を Vercel の環境変数と GitHub リポジトリ Secrets の両方に設定する（GitHub Actions がこの値でエンドポイントを叩く）。**未設定だと401で通知が動かない。** |
 | `WEBRIS_CONTRACT_NOTIFY_TO` | 通知先。省略時は `email_info@levan.jp` |
 | `RESEND_API_KEY` / `MAIL_FROM` | 既存。メール配信 |
 

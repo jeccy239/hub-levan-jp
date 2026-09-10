@@ -1,0 +1,38 @@
+# WEBRIS 契約検知 cron。
+#
+# Vercel は Hobby プランだと cron が「1日1回」までに制限される（vercel.json は
+# その制約内の 0 15 * * * = 毎日 00:00 JST をフォールバックとして持つ）。
+# 新規登録者へのサンクスメール／社内通知はもっと早く出したいので、GitHub
+# Actions から15分おきにエンドポイントを叩く。
+#
+# 必要な設定: リポジトリの Secrets に CRON_SECRET を追加（Vercel の環境変数
+# CRON_SECRET と同じ値）。Settings → Secrets and variables → Actions → New secret
+
+name: webris-contracts-cron
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: webris-contracts-cron
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call cron endpoint
+        run: |
+          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "CRON_SECRET secret is not set — skipping."
+            exit 0
+          fi
+          code=$(curl -sS -o /tmp/body -w '%{http_code}' \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://hub.levan.jp/api/cron/webris-contracts")
+          echo "HTTP $code"
+          cat /tmp/body
+          echo
+          test "$code" = "200"

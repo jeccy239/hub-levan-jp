@@ -2,7 +2,9 @@ import Link from "next/link";
 import { isEmailConfigured } from "@/lib/email";
 import { getSenderName } from "@/lib/authz";
 import { collectRecipients } from "@/lib/recipients";
+import { getThanksEmailConfig } from "@/lib/thanksEmail";
 import ComposeForm from "./ComposeForm";
+import ThanksEmailPanel from "./ThanksEmailPanel";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -10,6 +12,7 @@ export const maxDuration = 60;
 export default async function ComposePage() {
   const senderName = await getSenderName();
   const { recipients, unreachableCount, webrisError } = await collectRecipients();
+  const thanks = await getThanksEmailConfig();
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10 space-y-6">
@@ -27,6 +30,15 @@ export default async function ComposePage() {
           ダッシュボードへ戻る
         </Link>
       </header>
+
+      <ThanksEmailPanel
+        initial={{
+          enabled: thanks.enabled,
+          subject: thanks.subject,
+          body: thanks.body,
+          senderName: thanks.senderName,
+        }}
+      />
 
       <ComposeForm
         recipients={recipients}

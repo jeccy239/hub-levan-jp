@@ -7,6 +7,7 @@ import { discoverProspectCompanies } from "@/agents/leadResearchAgent";
 import { draftTemplate, sendBulkOutreach, sendTestEmail } from "@/agents/salesAgent";
 import { GbizApiError, GbizNotConfiguredError } from "@/lib/gbizinfo";
 import { collectRecipients, parseManualEmails, type Recipient } from "@/lib/recipients";
+import { saveThanksEmailConfig, unresolvedThanksTokens } from "@/lib/thanksEmail";
 
 export async function runProspectingAction(formData?: FormData) {
   await requireUser();
@@ -125,4 +126,39 @@ export async function sendBulkOutreachAction(formData: FormData) {
   revalidatePath("/sales-ai");
   revalidatePath("/leads");
   return outcome;
+}
+
+/**
+ * 新規登録者への自動サンクスメールの設定を保存する。有効にすると、WEBRISに
+ * 新規登録（企業アカウント）があったとき cron が自動でこの文面を送信する。
+ * 顧客への実送信につながる設定なので承認者権限を必須にする。
+ */
+export async function saveThanksEmailConfigAction(formData: FormData) {
+  const user = await requireApprover();
+  const enabled = formData.get("enabled") === "1";
+  const subject = String(formData.get("subject") ?? "").trim();
+  const body = String(formData.get("body") ?? "").trim();
+
+  if (!subject || !body) throw new Error("件名と本文を入力してください。");
+
+  const bad = [...new Set([...unresolvedThanksTokens(subject), ...unresolvedThanksTokens(body)])];
+  if (bad.length > 0) {
+    throw new Error(
+      `この自動メールで使える差込変数は {{company}} / {{sender}} / {{webris_url}} / {{company_address}} だけです。未対応: ${bad.join("、")}`,
+    );
+  }
+  if (!body.includes("{{company_address}}")) {
+    throw new Error("特定電子メール法により、送信者情報 {{company_address}} を本文に含めてください。");
+  }
+
+  await saveThanksEmailConfig({ enabled, subject, body });
+  await logAudit({
+    userId: user.id,
+    action: "webris.thanks_email.save",
+    targetType: "app_setting",
+    targetId: "webris_thanks_email",
+    detail: { enabled },
+  });
+  revalidatePath("/sales-ai/compose");
+  return { ok: true as const, enabled };
 }

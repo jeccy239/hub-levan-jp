@@ -4,6 +4,7 @@ import { runWebrisContractNotify } from "@/lib/webrisContractNotify";
 import { WebrisApiError, WebrisNotConfiguredError } from "@/lib/webris";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 // Vercel Cron から定期実行される。Vercel は CRON_SECRET を設定していると
 // Authorization: Bearer <CRON_SECRET> を付けてくるので、それを検証して

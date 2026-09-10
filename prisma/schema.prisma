@@ -616,5 +616,18 @@ model WebrisContractNotice {
   name        String
   accountType String // "company" | "manager"
   notifiedAt  DateTime @default(now())
-  emailStatus String // "delivered" | "skipped" | "failed" | その理由
+  emailStatus String // 社内通知(email_info@levan.jp)の結果: "delivered" | "backfill" | "skipped:*" | "failed:*"
+  // 新規登録者本人への自動サンクスメールの結果。未送信(無効時/管理者)はnull。
+  thanksEmailStatus String?
+}
+
+// ---------------------------------------------------------------------------
+// 汎用の設定キー/バリュー。今は「新規登録者への自動サンクスメール」の
+// 有効/無効と文面を持つ（/sales-ai/compose で編集）。値は文字列で保存し、
+// 真偽は "1" / "0" で表す。
+// ---------------------------------------------------------------------------
+model AppSetting {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
 }

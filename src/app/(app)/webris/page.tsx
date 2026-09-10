@@ -8,6 +8,7 @@ import {
 } from "@/lib/webris";
 import type { WebrisOrganization } from "@/lib/webris";
 import { formatYen } from "@/lib/labels";
+import Avatar from "@/components/Avatar";
 
 type WebrisOrg = WebrisOrganization;
 
@@ -355,50 +356,64 @@ export default async function WebrisCustomersPage({
                   const isChildOfContract = !isManager && contract.id !== org.id;
                   const memberships = isManager ? (org.memberships ?? []) : [];
                   const detailId = isManager ? org.id : contract.id;
+                  const avatarSrc = isManager
+                    ? org.ownerAvatarUrl ?? null
+                    : contract.logoUrl ?? null;
+                  const avatarName = isManager ? org.ownerName ?? org.name : contract.name;
                   return (
                     <tr key={org.id} className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--surface-2)] transition-colors">
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <Link href={`/webris/${detailId}`} className="font-medium text-[var(--text)] hover:text-[var(--accent)]">
-                            {isManager ? org.name : contract.name}
-                          </Link>
-                          <span
-                            className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-medium ${ACCOUNT_TYPE_BADGE[org.accountType]}`}
-                          >
-                            {ACCOUNT_TYPE_LABEL[org.accountType]}
-                          </span>
-                        </div>
-                        {!isManager && contract.websiteUrl && <div className="text-xs text-[var(--text-dim)]">{contract.websiteUrl}</div>}
-                        {isChildOfContract && (
-                          <div className="text-xs text-[var(--accent)] mt-1">
-                            運用サイト：{org.name}
-                            {org.websiteUrl && `（${org.websiteUrl}）`}
-                          </div>
-                        )}
-                        {isManager && (
-                          <div className="text-xs text-[var(--text-dim)] mt-1">
-                            {memberships.length > 0 ? (
-                              <>
-                                加入組織：
-                                {memberships.map((m, i) => (
-                                  <span key={m.organizationId}>
-                                    {i > 0 && "、"}
-                                    <Link href={`/webris/${m.organizationId}`} className="text-[var(--accent)] hover:underline">
-                                      {m.organizationName}
-                                    </Link>
-                                    （{ROLE_LABEL[m.role] ?? m.role}）
-                                  </span>
-                                ))}
-                              </>
-                            ) : (
-                              "加入組織なし（招待コード待ち）"
+                        <div className="flex items-start gap-3">
+                          <Avatar src={avatarSrc} name={avatarName} size={36} />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Link href={`/webris/${detailId}`} className="font-medium text-[var(--text)] hover:text-[var(--accent)]">
+                                {isManager ? org.name : contract.name}
+                              </Link>
+                              <span
+                                className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-medium ${ACCOUNT_TYPE_BADGE[org.accountType]}`}
+                              >
+                                {ACCOUNT_TYPE_LABEL[org.accountType]}
+                              </span>
+                            </div>
+                            {!isManager && contract.websiteUrl && <div className="text-xs text-[var(--text-dim)]">{contract.websiteUrl}</div>}
+                            {isChildOfContract && (
+                              <div className="text-xs text-[var(--accent)] mt-1">
+                                運用サイト：{org.name}
+                                {org.websiteUrl && `（${org.websiteUrl}）`}
+                              </div>
+                            )}
+                            {isManager && (
+                              <div className="text-xs text-[var(--text-dim)] mt-1">
+                                {memberships.length > 0 ? (
+                                  <>
+                                    加入組織：
+                                    {memberships.map((m, i) => (
+                                      <span key={m.organizationId}>
+                                        {i > 0 && "、"}
+                                        <Link href={`/webris/${m.organizationId}`} className="text-[var(--accent)] hover:underline">
+                                          {m.organizationName}
+                                        </Link>
+                                        （{ROLE_LABEL[m.role] ?? m.role}）
+                                      </span>
+                                    ))}
+                                  </>
+                                ) : (
+                                  "加入組織なし（招待コード待ち）"
+                                )}
+                              </div>
                             )}
                           </div>
-                        )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-[var(--text-dim)]">
-                        <div>{org.ownerName ?? "—"}</div>
-                        <div className="text-xs">{org.ownerEmail}</div>
+                        <div className="flex items-center gap-2">
+                          <Avatar src={org.ownerAvatarUrl ?? null} name={org.ownerName ?? org.ownerEmail} size={24} />
+                          <div className="min-w-0">
+                            <div className="text-[var(--text)]">{org.ownerName ?? "—"}</div>
+                            <div className="text-xs truncate">{org.ownerEmail}</div>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-[var(--text)]">{isManager ? "—" : contract.planName}</td>
                       <td className="px-4 py-3 tabular-nums text-[var(--text)]">{isManager ? "—" : formatYen(contract.monthlyPriceJpy)}</td>

@@ -82,8 +82,16 @@ type WebrisOrganization = {
   createdAt: string;                 // ISO 8601（契約日として表示）
   ownerName: string | null;
   ownerEmail: string;
+  // 任意。プロフィール画像URL。返せない場合は省略/null でよい
+  // （LEVAN HUB側が頭文字アイコンにフォールバックする）。
+  logoUrl?: string | null;        // 企業アカウントのロゴ画像URL
+  ownerAvatarUrl?: string | null; // オーナー/担当者ユーザーのアバター画像URL
 };
 ```
+
+`logoUrl` / `ownerAvatarUrl` は公開URL（認証不要でGETできること）を返してください。
+LEVAN HUBは素の `<img>` で読み込むため、画像ホストにCORS設定は不要ですが、
+`Referrer-Policy` で弾かれない公開バケット等を推奨します。
 
 トップレベルはこの配列そのもの（`{ data: [...] }` のようなラップはしない）。
 

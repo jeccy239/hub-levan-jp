@@ -11,6 +11,7 @@ import { changePlanAction } from "../actions";
 import CancelSubscriptionForm from "./CancelSubscriptionForm";
 import DeleteAccountForm from "./DeleteAccountForm";
 import { prisma } from "@/lib/prisma";
+import Avatar from "@/components/Avatar";
 
 export const dynamic = "force-dynamic";
 
@@ -87,19 +88,28 @@ export default async function WebrisCustomerDetailPage({
         <Link href="/webris" className="text-sm text-[var(--accent)] hover:underline">
           ← WEBRIS顧客一覧
         </Link>
-        <div className="flex items-center gap-2 mt-2">
-          <h1 className="text-[26px] font-semibold tracking-tight text-[var(--text)]">
-            {org.name}
-          </h1>
-          <span
-            className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-medium ${
-              isManager ? "bg-[var(--gold-tint)] text-[var(--gold)]" : "bg-[var(--accent-tint)] text-[var(--accent-strong)]"
-            }`}
-          >
-            {isManager ? "管理者アカウント" : "企業アカウント"}
-          </span>
+        <div className="flex items-start gap-3 mt-2">
+          <Avatar
+            src={(isManager ? org.ownerAvatarUrl : org.logoUrl) ?? null}
+            name={isManager ? org.ownerName ?? org.name : org.name}
+            size={44}
+          />
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-[26px] font-semibold tracking-tight text-[var(--text)]">
+                {org.name}
+              </h1>
+              <span
+                className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                  isManager ? "bg-[var(--gold-tint)] text-[var(--gold)]" : "bg-[var(--accent-tint)] text-[var(--accent-strong)]"
+                }`}
+              >
+                {isManager ? "管理者アカウント" : "企業アカウント"}
+              </span>
+            </div>
+            {org.websiteUrl && <p className="text-[var(--text-dim)]">{org.websiteUrl}</p>}
+          </div>
         </div>
-        {org.websiteUrl && <p className="text-[var(--text-dim)]">{org.websiteUrl}</p>}
         {linkedCompany ? (
           <Link href={`/companies/${linkedCompany.id}`} className="text-sm text-[var(--accent)] hover:underline mt-1 inline-block">
             顧客管理: {linkedCompany.name} を見る →
@@ -180,12 +190,15 @@ export default async function WebrisCustomerDetailPage({
                 {managers.map((m) => {
                   const role = m.memberships?.find((mm) => mm.organizationId === org!.id)?.role;
                   return (
-                    <li key={m.id} className="py-2 flex items-center justify-between">
-                      <Link href={`/webris/${m.id}`} className="text-[var(--accent)] hover:underline">
-                        {m.ownerName ?? "—"}
-                        <span className="text-xs text-[var(--text-dim)] ml-2">{m.ownerEmail}</span>
+                    <li key={m.id} className="py-2 flex items-center justify-between gap-3">
+                      <Link href={`/webris/${m.id}`} className="flex items-center gap-2 min-w-0 hover:text-[var(--accent)]">
+                        <Avatar src={m.ownerAvatarUrl ?? null} name={m.ownerName ?? m.ownerEmail} size={24} />
+                        <span className="text-[var(--accent)] truncate">
+                          {m.ownerName ?? "—"}
+                          <span className="text-xs text-[var(--text-dim)] ml-2">{m.ownerEmail}</span>
+                        </span>
                       </Link>
-                      <span className="text-xs text-[var(--text-dim)]">{role ? ROLE_LABEL[role] ?? role : "—"}</span>
+                      <span className="text-xs text-[var(--text-dim)] shrink-0">{role ? ROLE_LABEL[role] ?? role : "—"}</span>
                     </li>
                   );
                 })}

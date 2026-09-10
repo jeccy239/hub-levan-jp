@@ -17,6 +17,10 @@ export type WebrisOrganization = {
   createdAt: string; // ISO date — treated as the contract/signup date
   ownerName: string | null;
   ownerEmail: string;
+  // プロフィール画像。WEBRIS側が返せる場合のみ。未指定/失敗時はHUB側が
+  // 頭文字アイコンにフォールバックする（src/components/Avatar.tsx）。
+  logoUrl?: string | null; // 企業アカウントのロゴ
+  ownerAvatarUrl?: string | null; // オーナー/担当者ユーザーのアバター
   // 管理者アカウント（accountType: "manager"）のみ持つ。参加済みの企業と
   // その役割。招待を受けてまだ参加していない場合は空配列。
   memberships?: { organizationId: string; organizationName: string; role: string }[];

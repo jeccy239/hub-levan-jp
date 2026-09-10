@@ -12,6 +12,6 @@ export const config = {
   // session — gating them means the pixel never fires and every image in
   // every email renders broken), and Next.js internals/static assets.
   matcher: [
-    "/((?!login|api/auth|api/track|mail/|_next/static|_next/image|favicon.ico|icon.png|robots.txt|logo_blue_02.png).*)",
+    "/((?!login|api/auth|api/track|api/cron|mail/|_next/static|_next/image|favicon.ico|icon.png|robots.txt|logo_blue_02.png).*)",
   ],
 };

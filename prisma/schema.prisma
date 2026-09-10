@@ -605,3 +605,16 @@ model CostLedgerEntry {
 
   @@unique([customerLabel, period])
 }
+
+// ---------------------------------------------------------------------------
+// WEBRIS 契約通知の重複防止。WEBRIS側のOrganization（＝契約主体）を初めて
+// 見たときに1行作り、その時点で email_info@levan.jp へ「契約しました」通知を
+// 送る。次回以降のポーリングでは既存行があるので再送しない。
+// ---------------------------------------------------------------------------
+model WebrisContractNotice {
+  webrisOrgId String   @id
+  name        String
+  accountType String // "company" | "manager"
+  notifiedAt  DateTime @default(now())
+  emailStatus String // "delivered" | "skipped" | "failed" | その理由
+}

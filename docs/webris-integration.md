@@ -129,6 +129,30 @@ LEVAN HUBの顧客詳細画面には「シークレットプランに変更」�
 これが入るまでは、Freeや解約済みアカウントに対してボタンを押すと
 「このOrganizationはStripe課金中ではないため…」というエラーがHUB画面に表示される。
 
+## 契約増加のメール通知（HUB側のcronで実装済み）
+
+新しい企業アカウント（＝契約）がWEBRISに増えたら、`email_info@levan.jp` へ
+「○○○様が契約しました。」というメールを送る。
+
+- 実装: [src/lib/webrisContractNotify.ts](../src/lib/webrisContractNotify.ts) /
+  [src/app/api/cron/webris-contracts/route.ts](../src/app/api/cron/webris-contracts/route.ts)
+- 仕組み: WEBRIS Webhookが無いため、HUBのcron（[vercel.json](../vercel.json)、15分間隔）が
+  WEBRIS APIを叩き、HUB DBの `WebrisContractNotice` テーブルと差分を取って新規分だけ通知。
+- **初回実行時**は既存の全Organizationを「通知済み」として取り込むだけでメールは送らない
+  （一斉送信を防ぐ）。2回目以降に現れた企業アカウントが通知対象。
+- 管理者アカウント（招待コード参加）は「契約」ではないので通知しない（行だけ作る）。
+- メール送信は既存の Resend 連携（`RESEND_API_KEY` / `MAIL_FROM`）を使う。
+
+### 必要な環境変数（Vercel / Production）
+
+| 変数 | 用途 |
+| --- | --- |
+| `CRON_SECRET` | cronエンドポイントの認証。Vercelが `Authorization: Bearer <値>` を自動付与。**未設定だと401で通知が動かない。** |
+| `WEBRIS_CONTRACT_NOTIFY_TO` | 通知先。省略時は `email_info@levan.jp` |
+| `RESEND_API_KEY` / `MAIL_FROM` | 既存。メール配信 |
+
+手動確認: `GET https://hub.levan.jp/api/cron/webris-contracts?key=<CRON_SECRET>`
+
 ## 将来の拡張候補
 
 - プラン変更・強制解約などの書き込み操作（別エンドポイント、同じ認証方式）

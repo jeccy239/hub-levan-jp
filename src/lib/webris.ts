@@ -17,6 +17,9 @@ export type WebrisOrganization = {
   createdAt: string; // ISO date — treated as the contract/signup date
   ownerName: string | null;
   ownerEmail: string;
+  // 管理者アカウント（accountType: "manager"）のみ持つ。参加済みの企業と
+  // その役割。招待を受けてまだ参加していない場合は空配列。
+  memberships?: { organizationId: string; organizationName: string; role: string }[];
 };
 
 export class WebrisNotConfiguredError extends Error {}

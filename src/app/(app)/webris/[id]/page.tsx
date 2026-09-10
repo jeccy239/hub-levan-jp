@@ -23,6 +23,12 @@ const PLAN_OPTIONS = [
   { code: "business", label: "Business（¥38,000）" },
 ];
 
+const ROLE_LABEL: Record<string, string> = {
+  OWNER: "オーナー",
+  EDITOR: "編集者",
+  VIEWER: "閲覧者",
+};
+
 const card = "border border-[var(--line)] rounded-2xl p-5 bg-[var(--surface)] shadow-sm";
 const primaryButton =
   "text-sm bg-[var(--accent)] hover:bg-[var(--accent-strong)] text-white rounded-xl px-4 py-2 font-medium shadow-sm";
@@ -35,12 +41,19 @@ export default async function WebrisCustomerDetailPage({
   const { id } = await params;
 
   let org;
+  let managers: Awaited<ReturnType<typeof fetchWebrisOrganizations>> = [];
   let paymentMethod = null;
   let error: string | null = null;
 
   try {
     const orgs = await fetchWebrisOrganizations();
     org = orgs.find((o) => o.id === id);
+    // この企業に招待コードで参加している管理者アカウント（EDITOR/VIEWER）。
+    // 管理者アカウントはOrganizationを自分で持たないので、参加先の
+    // memberships配列からこの組織IDに一致するものだけを拾う。
+    managers = orgs.filter(
+      (o) => o.accountType === "manager" && o.memberships?.some((m) => m.organizationId === id),
+    );
     if (org) {
       paymentMethod = await fetchWebrisPaymentMethod(id).catch(() => null);
     }
@@ -110,6 +123,28 @@ export default async function WebrisCustomerDetailPage({
           </div>
         ) : (
           <p className="text-[var(--text-dim)]">登録されているカード情報がありません。</p>
+        )}
+      </section>
+
+      <section className={`${card} space-y-2 text-sm`}>
+        <h2 className="font-semibold text-[var(--text)] mb-2">管理者アカウント</h2>
+        {managers.length > 0 ? (
+          <ul className="divide-y divide-[var(--line)]">
+            {managers.map((m) => {
+              const role = m.memberships?.find((mm) => mm.organizationId === org!.id)?.role;
+              return (
+                <li key={m.id} className="py-2 flex items-center justify-between">
+                  <div className="text-[var(--text)]">
+                    {m.ownerName ?? "—"}
+                    <span className="text-xs text-[var(--text-dim)] ml-2">{m.ownerEmail}</span>
+                  </div>
+                  <span className="text-xs text-[var(--text-dim)]">{role ? ROLE_LABEL[role] ?? role : "—"}</span>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-[var(--text-dim)]">この企業に参加している管理者アカウントはいません。</p>
         )}
       </section>
 

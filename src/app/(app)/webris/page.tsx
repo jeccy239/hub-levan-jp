@@ -35,6 +35,15 @@ const STATUS_STYLE: Record<string, string> = {
   incomplete: "bg-[var(--danger-tint)] text-[var(--danger)]",
 };
 
+const ACCOUNT_TYPE_BADGE: Record<WebrisOrg["accountType"], string> = {
+  company: "bg-[var(--accent-tint)] text-[var(--accent-strong)]",
+  manager: "bg-[var(--gold-tint)] text-[var(--gold)]",
+};
+const ACCOUNT_TYPE_LABEL: Record<WebrisOrg["accountType"], string> = {
+  company: "企業アカウント",
+  manager: "管理者アカウント",
+};
+
 function monthBounds(year: number, month: number) {
   const first = new Date(year, month, 1);
   const last = new Date(year, month + 1, 0);
@@ -55,16 +64,37 @@ function buildMonthOptions() {
   return options;
 }
 
+function buildQuery(params: Record<string, string | undefined>) {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v) q.set(k, v);
+  }
+  const s = q.toString();
+  return s ? `?${s}` : "";
+}
+
 export default async function WebrisCustomersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{
+    from?: string;
+    to?: string;
+    type?: string;
+    plan?: string;
+    q?: string;
+  }>;
 }) {
   const params = await searchParams;
   const monthOptions = buildMonthOptions();
   const currentMonth = monthOptions[6]; // offset 0
-  const from = params.from || currentMonth.from;
-  const to = params.to || currentMonth.to;
+
+  const isAllTime = params.from === "all";
+  const from = isAllTime ? null : params.from || currentMonth.from;
+  const to = isAllTime ? null : params.to || currentMonth.to;
+
+  const typeFilter = params.type === "company" || params.type === "manager" ? params.type : "";
+  const planFilter = params.plan ?? "";
+  const search = (params.q ?? "").trim();
 
   let organizations: Awaited<ReturnType<typeof fetchWebrisOrganizations>> = [];
   let planChanges: Awaited<ReturnType<typeof fetchWebrisPlanChanges>> = [];
@@ -80,12 +110,12 @@ export default async function WebrisCustomersPage({
         : "WEBRIS顧客情報の取得中に予期しないエラーが発生しました。";
   }
 
-  const fromDate = new Date(`${from}T00:00:00`);
-  const toDate = new Date(`${to}T23:59:59`);
-  const inRange = organizations.filter((org) => {
+  const inPeriod = (org: WebrisOrg) => {
+    if (isAllTime) return true;
     const created = new Date(org.createdAt);
-    return created >= fromDate && created <= toDate;
-  });
+    return created >= new Date(`${from}T00:00:00`) && created <= new Date(`${to}T23:59:59`);
+  };
+  const inRange = organizations.filter(inPeriod);
   const displayedRevenue = inRange.reduce((sum, org) => sum + org.monthlyPriceJpy, 0);
 
   const byPlan = new Map<string, { planName: string; count: number; monthlyPriceJpy: number }>();
@@ -96,6 +126,10 @@ export default async function WebrisCustomersPage({
     byPlan.set(org.planCode, entry);
   }
   const planSummaries = [...byPlan.values()].sort((a, b) => a.monthlyPriceJpy - b.monthlyPriceJpy);
+  // プラン絞り込みのプルダウン用。契約が1件も無いプランは出さない。
+  const planFilterOptions = [...byPlan.entries()]
+    .map(([code, v]) => ({ code, name: v.planName, price: v.monthlyPriceJpy }))
+    .sort((a, b) => a.price - b.price);
 
   // 同じ担当者アカウント（メール）が複数の組織を運用しているケースがある
   // （例: gi@rojam.jp が株式会社ROJAMとROJAMオンラインの両方を運用）。
@@ -117,8 +151,6 @@ export default async function WebrisCustomersPage({
   }
   const contractOrgByEmail = new Map<string, WebrisOrg>();
   for (const [email, orgs] of orgsByOwnerEmail) {
-    // 実際に課金されている組織が無いメール（全部Free）は、グルーピングする
-    // 意味のある「契約」自体が存在しないので束ねない。
     const paidOrgs = orgs.filter((o) => o.monthlyPriceJpy > 0);
     if (paidOrgs.length === 0) continue;
     const contract = paidOrgs.reduce((best, o) => (o.monthlyPriceJpy > best.monthlyPriceJpy ? o : best), paidOrgs[0]);
@@ -131,13 +163,40 @@ export default async function WebrisCustomersPage({
     return contractOrgByEmail.get(org.ownerEmail) ?? org;
   }
 
-  const ACCOUNT_TYPE_BADGE: Record<WebrisOrg["accountType"], string> = {
-    company: "bg-[var(--accent-tint)] text-[var(--accent-strong)]",
-    manager: "bg-[var(--gold-tint)] text-[var(--gold)]",
-  };
-  const ACCOUNT_TYPE_LABEL: Record<WebrisOrg["accountType"], string> = {
-    company: "企業アカウント",
-    manager: "管理者アカウント",
+  // 一覧テーブルは「期間 → アカウント種別 → プラン → キーワード検索」の
+  // AND で絞り込む。
+  const needle = search.toLowerCase();
+  const rows = inRange.filter((org) => {
+    if (typeFilter && org.accountType !== typeFilter) return false;
+
+    const contract = resolveContract(org);
+    if (planFilter) {
+      if (org.accountType === "manager") return false; // 管理者にはプランが無い
+      if (contract.planCode !== planFilter) return false;
+    }
+
+    if (needle) {
+      const haystack = [
+        org.name,
+        contract.name,
+        org.ownerName ?? "",
+        org.ownerEmail,
+        ...(org.memberships?.map((m) => m.organizationName) ?? []),
+      ]
+        .join(" ")
+        .toLowerCase();
+      if (!haystack.includes(needle)) return false;
+    }
+    return true;
+  });
+
+  const filtersActive = Boolean(typeFilter || planFilter || search);
+  const periodParam = isAllTime ? { from: "all" } : { from: from ?? undefined, to: to ?? undefined };
+  const currentParams = {
+    ...periodParam,
+    type: typeFilter || undefined,
+    plan: planFilter || undefined,
+    q: search || undefined,
   };
 
   return (
@@ -147,7 +206,7 @@ export default async function WebrisCustomersPage({
           WEBRIS顧客管理
         </h1>
         <p className="text-[var(--text-dim)] mt-1">
-          webris.levan.jp に登録されている顧客(Organization)をLEVAN HUBから確認します。
+          webris.levan.jp に登録されている顧客（企業アカウント／管理者アカウント）をLEVAN HUBから確認します。
         </p>
       </div>
 
@@ -176,12 +235,22 @@ export default async function WebrisCustomersPage({
 
           <section className="space-y-3">
             <div className="inline-flex flex-wrap gap-1 p-1 rounded-full bg-black/[0.05] backdrop-blur-xl backdrop-saturate-150 border border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.5),0_1px_2px_rgba(0,0,0,0.04)]">
+              <Link
+                href={`/webris${buildQuery({ ...currentParams, from: "all", to: undefined })}`}
+                className={`text-sm px-3.5 py-1.5 rounded-full font-medium transition-all duration-200 ${
+                  isAllTime
+                    ? "bg-white/70 text-[var(--text)] backdrop-blur-xl shadow-[0_1px_3px_rgba(0,0,0,0.12)]"
+                    : "text-[var(--text-dim)] hover:bg-white/30 hover:text-[var(--text)]"
+                }`}
+              >
+                全期間
+              </Link>
               {monthOptions.map((m) => {
-                const isActive = m.from === from && m.to === to;
+                const isActive = !isAllTime && m.from === from && m.to === to;
                 return (
                   <Link
                     key={m.from}
-                    href={`/webris?from=${m.from}&to=${m.to}`}
+                    href={`/webris${buildQuery({ ...currentParams, from: m.from, to: m.to })}`}
                     className={`text-sm px-3.5 py-1.5 rounded-full font-medium transition-all duration-200 ${
                       isActive
                         ? "bg-white/70 text-[var(--text)] backdrop-blur-xl shadow-[0_1px_3px_rgba(0,0,0,0.12)]"
@@ -197,7 +266,9 @@ export default async function WebrisCustomersPage({
             <div className="flex items-center justify-between border border-[var(--line)] rounded-2xl px-5 py-4 bg-[var(--surface)] shadow-sm">
               <div>
                 <div className="text-xs text-[var(--text-dim)]">
-                  表示中の期間（{new Date(from).toLocaleDateString("ja-JP")} 〜 {new Date(to).toLocaleDateString("ja-JP")}）に契約した顧客
+                  {isAllTime
+                    ? "全期間に契約した顧客"
+                    : `表示中の期間（${new Date(from!).toLocaleDateString("ja-JP")} 〜 ${new Date(to!).toLocaleDateString("ja-JP")}）に契約した顧客`}
                 </div>
                 <div className="text-xl font-semibold tabular-nums text-[var(--text)] mt-1">
                   {inRange.length.toLocaleString("ja-JP")}社
@@ -212,6 +283,57 @@ export default async function WebrisCustomersPage({
             </div>
           </section>
 
+          {/* 検索・絞り込み */}
+          <form method="get" className="border border-[var(--line)] rounded-2xl bg-[var(--surface)] shadow-sm p-4 space-y-3">
+            {isAllTime && <input type="hidden" name="from" value="all" />}
+            {!isAllTime && from && <input type="hidden" name="from" value={from} />}
+            {!isAllTime && to && <input type="hidden" name="to" value={to} />}
+
+            <div className="flex flex-wrap gap-3">
+              <input
+                name="q"
+                defaultValue={search}
+                placeholder="アカウント名・担当者名・メールで検索"
+                className="flex-1 min-w-[220px] border border-[var(--line)] rounded-xl px-3.5 py-2 text-sm bg-[var(--surface)] text-[var(--text)] placeholder:text-[var(--text-dim)]"
+              />
+              <select
+                name="type"
+                defaultValue={typeFilter}
+                className="border border-[var(--line)] rounded-xl px-3 py-2 text-sm bg-[var(--surface)] text-[var(--text)]"
+              >
+                <option value="">すべての種別</option>
+                <option value="company">企業アカウント</option>
+                <option value="manager">管理者アカウント</option>
+              </select>
+              <select
+                name="plan"
+                defaultValue={planFilter}
+                className="border border-[var(--line)] rounded-xl px-3 py-2 text-sm bg-[var(--surface)] text-[var(--text)]"
+              >
+                <option value="">すべてのプラン</option>
+                {planFilterOptions.map((p) => (
+                  <option key={p.code} value={p.code}>
+                    {p.name}プラン
+                  </option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                className="text-sm bg-[var(--accent)] hover:bg-[var(--accent-strong)] text-white rounded-xl px-4 py-2 font-medium shadow-sm"
+              >
+                絞り込み
+              </button>
+              {filtersActive && (
+                <Link
+                  href={`/webris${buildQuery(periodParam)}`}
+                  className="text-sm text-[var(--text-dim)] hover:text-[var(--text)] rounded-xl px-4 py-2 font-medium"
+                >
+                  クリア
+                </Link>
+              )}
+            </div>
+          </form>
+
           <div className="overflow-x-auto border border-[var(--line)] rounded-2xl bg-[var(--surface)] shadow-sm">
             <table className="w-full text-sm">
               <thead>
@@ -223,25 +345,23 @@ export default async function WebrisCustomersPage({
                   <th className="px-4 py-3 whitespace-nowrap">ステータス</th>
                   <th className="px-4 py-3">契約日</th>
                   <th className="px-4 py-3">次回更新日</th>
+                  <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody>
-                {inRange.map((org) => {
+                {rows.map((org) => {
                   const isManager = org.accountType === "manager";
                   const contract = resolveContract(org);
                   const isChildOfContract = !isManager && contract.id !== org.id;
                   const memberships = isManager ? (org.memberships ?? []) : [];
+                  const detailId = isManager ? org.id : contract.id;
                   return (
                     <tr key={org.id} className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--surface-2)] transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          {isManager ? (
-                            <span className="font-medium text-[var(--text)]">{org.name}</span>
-                          ) : (
-                            <Link href={`/webris/${contract.id}`} className="font-medium text-[var(--text)] hover:text-[var(--accent)]">
-                              {contract.name}
-                            </Link>
-                          )}
+                          <Link href={`/webris/${detailId}`} className="font-medium text-[var(--text)] hover:text-[var(--accent)]">
+                            {isManager ? org.name : contract.name}
+                          </Link>
                           <span
                             className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-medium ${ACCOUNT_TYPE_BADGE[org.accountType]}`}
                           >
@@ -305,15 +425,27 @@ export default async function WebrisCustomersPage({
                       </td>
                       <td className="px-4 py-3 text-[var(--text-dim)]">{new Date(org.createdAt).toLocaleDateString("ja-JP")}</td>
                       <td className="px-4 py-3 text-[var(--text-dim)]">
-                      {!isManager && contract.currentPeriodEnd ? new Date(contract.currentPeriodEnd).toLocaleDateString("ja-JP") : "—"}
-                    </td>
+                        {!isManager && contract.currentPeriodEnd ? new Date(contract.currentPeriodEnd).toLocaleDateString("ja-JP") : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <Link
+                          href={`/webris/${detailId}`}
+                          className="inline-block text-xs font-medium rounded-lg px-3 py-1.5 bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--line)]"
+                        >
+                          詳細
+                        </Link>
+                      </td>
                     </tr>
                   );
                 })}
-                {inRange.length === 0 && (
+                {rows.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-[var(--text-dim)]">
-                      この期間に契約した顧客はいません。
+                    <td colSpan={8} className="px-4 py-8 text-center text-[var(--text-dim)]">
+                      {filtersActive
+                        ? "条件に一致する顧客がいません。"
+                        : isAllTime
+                          ? "顧客がまだいません。"
+                          : "この期間に契約した顧客はいません。"}
                     </td>
                   </tr>
                 )}

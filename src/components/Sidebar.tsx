@@ -21,7 +21,6 @@ const NAV_ITEMS: NavItem[] = [
     label: "WEBRIS（ウェブリス）",
     children: [
       { href: "/webris", label: "顧客一覧" },
-      { href: "/webris/managers", label: "顧客一覧（管理者アカウント）" },
       { href: "/sales-ai", label: "WEBRIS メール管理" },
       { href: "/webris/claude-usage", label: "Claude Console API" },
     ],

@@ -65,7 +65,7 @@ export default async function WebrisCustomerDetailPage({
 
   if (error) {
     return (
-      <div className="max-w-3xl mx-auto px-6 py-10">
+      <div className="max-w-6xl mx-auto px-6 py-10">
         <div className="border border-[var(--gold)]/30 bg-[var(--gold-tint)] rounded-2xl p-5 text-sm text-[var(--text)]">
           {error}
         </div>
@@ -83,7 +83,7 @@ export default async function WebrisCustomerDetailPage({
   });
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
+    <div className="max-w-6xl mx-auto px-6 py-10 space-y-8">
       <div>
         <Link href="/webris" className="text-sm text-[var(--accent)] hover:underline">
           ← WEBRIS顧客一覧

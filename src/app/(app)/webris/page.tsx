@@ -336,17 +336,18 @@ export default async function WebrisCustomersPage({
           </form>
 
           <div className="overflow-x-auto border border-[var(--line)] rounded-2xl bg-[var(--surface)] shadow-sm">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead>
-                <tr className="text-left text-xs font-medium tracking-wide text-[var(--text-dim)] border-b border-[var(--line)]">
-                  <th className="px-4 py-3">アカウント名（契約名）</th>
-                  <th className="px-4 py-3">担当者</th>
-                  <th className="px-4 py-3">プラン</th>
-                  <th className="px-4 py-3">月額</th>
-                  <th className="px-4 py-3 whitespace-nowrap">ステータス</th>
-                  <th className="px-4 py-3">契約日</th>
-                  <th className="px-4 py-3">次回更新日</th>
-                  <th className="px-4 py-3"></th>
+                <tr className="text-left text-[11px] font-medium tracking-wide text-[var(--text-dim)] border-b border-[var(--line)]">
+                  <th className="px-3 py-2.5">アカウント名（契約名）</th>
+                  <th className="px-3 py-2.5 whitespace-nowrap">種別</th>
+                  <th className="px-3 py-2.5">担当者</th>
+                  <th className="px-3 py-2.5">プラン</th>
+                  <th className="px-3 py-2.5">月額</th>
+                  <th className="px-3 py-2.5 whitespace-nowrap">ステータス</th>
+                  <th className="px-3 py-2.5 whitespace-nowrap">契約日</th>
+                  <th className="px-3 py-2.5 whitespace-nowrap">次回更新日</th>
+                  <th className="px-3 py-2.5"></th>
                 </tr>
               </thead>
               <tbody>
@@ -362,29 +363,22 @@ export default async function WebrisCustomersPage({
                   const avatarName = isManager ? org.ownerName ?? org.name : contract.name;
                   return (
                     <tr key={org.id} className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--surface-2)] transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="flex items-start gap-3">
-                          <Avatar src={avatarSrc} name={avatarName} size={36} />
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-start gap-2.5">
+                          <Avatar src={avatarSrc} name={avatarName} size={28} />
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <Link href={`/webris/${detailId}`} className="font-medium text-[var(--text)] hover:text-[var(--accent)]">
-                                {isManager ? org.name : contract.name}
-                              </Link>
-                              <span
-                                className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-medium ${ACCOUNT_TYPE_BADGE[org.accountType]}`}
-                              >
-                                {ACCOUNT_TYPE_LABEL[org.accountType]}
-                              </span>
-                            </div>
-                            {!isManager && contract.websiteUrl && <div className="text-xs text-[var(--text-dim)]">{contract.websiteUrl}</div>}
+                            <Link href={`/webris/${detailId}`} className="font-medium text-[var(--text)] hover:text-[var(--accent)]">
+                              {isManager ? org.name : contract.name}
+                            </Link>
+                            {!isManager && contract.websiteUrl && <div className="text-[11px] text-[var(--text-dim)]">{contract.websiteUrl}</div>}
                             {isChildOfContract && (
-                              <div className="text-xs text-[var(--accent)] mt-1">
+                              <div className="text-[11px] text-[var(--accent)] mt-0.5">
                                 運用サイト：{org.name}
                                 {org.websiteUrl && `（${org.websiteUrl}）`}
                               </div>
                             )}
                             {isManager && (
-                              <div className="text-xs text-[var(--text-dim)] mt-1">
+                              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">
                                 {memberships.length > 0 ? (
                                   <>
                                     加入組織：
@@ -406,21 +400,28 @@ export default async function WebrisCustomersPage({
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-[var(--text-dim)]">
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <span
+                          className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-medium ${ACCOUNT_TYPE_BADGE[org.accountType]}`}
+                        >
+                          {ACCOUNT_TYPE_LABEL[org.accountType]}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 text-[var(--text-dim)]">
                         <div className="flex items-center gap-2">
-                          <Avatar src={org.ownerAvatarUrl ?? null} name={org.ownerName ?? org.ownerEmail} size={24} />
+                          <Avatar src={org.ownerAvatarUrl ?? null} name={org.ownerName ?? org.ownerEmail} size={20} />
                           <div className="min-w-0">
                             <div className="text-[var(--text)]">{org.ownerName ?? "—"}</div>
-                            <div className="text-xs truncate">{org.ownerEmail}</div>
+                            <div className="text-[11px] truncate">{org.ownerEmail}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-[var(--text)]">{isManager ? "—" : contract.planName}</td>
-                      <td className="px-4 py-3 tabular-nums text-[var(--text)]">{isManager ? "—" : formatYen(contract.monthlyPriceJpy)}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-[var(--text)]">{isManager ? "—" : contract.planName}</td>
+                      <td className="px-3 py-2.5 tabular-nums text-[var(--text)]">{isManager ? "—" : formatYen(contract.monthlyPriceJpy)}</td>
+                      <td className="px-3 py-2.5 whitespace-nowrap">
                         {isManager ? (
                           <span
-                            className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium ${
+                            className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-medium ${
                               memberships.length > 0
                                 ? "bg-[var(--accent-tint)] text-[var(--accent-strong)]"
                                 : "bg-[var(--surface-2)] text-[var(--text-dim)]"
@@ -430,7 +431,7 @@ export default async function WebrisCustomersPage({
                           </span>
                         ) : (
                           <span
-                            className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium ${
+                            className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-medium ${
                               contract.subscriptionStatus ? (STATUS_STYLE[contract.subscriptionStatus] ?? "") : "bg-[var(--surface-2)] text-[var(--text-dim)]"
                             }`}
                           >
@@ -438,14 +439,14 @@ export default async function WebrisCustomersPage({
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-[var(--text-dim)]">{new Date(org.createdAt).toLocaleDateString("ja-JP")}</td>
-                      <td className="px-4 py-3 text-[var(--text-dim)]">
+                      <td className="px-3 py-2.5 text-[var(--text-dim)] whitespace-nowrap">{new Date(org.createdAt).toLocaleDateString("ja-JP")}</td>
+                      <td className="px-3 py-2.5 text-[var(--text-dim)] whitespace-nowrap">
                         {!isManager && contract.currentPeriodEnd ? new Date(contract.currentPeriodEnd).toLocaleDateString("ja-JP") : "—"}
                       </td>
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
                         <Link
                           href={`/webris/${detailId}`}
-                          className="inline-block text-xs font-medium rounded-lg px-3 py-1.5 bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--line)]"
+                          className="inline-block text-[11px] font-medium rounded-lg px-2.5 py-1 bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--line)]"
                         >
                           詳細
                         </Link>
@@ -455,7 +456,7 @@ export default async function WebrisCustomersPage({
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-[var(--text-dim)]">
+                    <td colSpan={9} className="px-3 py-8 text-center text-[var(--text-dim)]">
                       {filtersActive
                         ? "条件に一致する顧客がいません。"
                         : isAllTime

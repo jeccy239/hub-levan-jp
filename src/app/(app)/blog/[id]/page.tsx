@@ -59,6 +59,9 @@ export default async function EditBlogPostPage({
               公開ページを開く ↗
             </a>
           )}
+          <span className="ml-auto text-[12px] text-[var(--text-dim)] tabular-nums" title="閲覧数（ページビュー）">
+            👁 {post.viewCount.toLocaleString("ja-JP")}
+          </span>
         </div>
       </div>
 

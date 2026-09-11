@@ -15,6 +15,8 @@ export type BlogPostSummary = {
   excerpt: string | null;
   coverImageUrl: string | null;
   publishedAt: string | null;
+  /** 公開ページの実閲覧数（PV）。ISRキャッシュに影響されないビーコン計測。 */
+  viewCount: number;
   createdAt: string;
   updatedAt: string;
   url: string | null;

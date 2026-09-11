@@ -112,6 +112,11 @@ export default async function BlogListPage({
                     >
                       {BLOG_STATUS_LABEL[post.status]}
                     </span>
+                    {post.category && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap bg-[var(--gold-tint)] text-[var(--gold)]">
+                        {post.category}
+                      </span>
+                    )}
                     <Link
                       href={`/blog/${post.id}`}
                       className="text-sm font-medium text-[var(--text)] truncate hover:text-[var(--accent)]"

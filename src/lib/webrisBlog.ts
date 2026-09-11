@@ -11,6 +11,7 @@ export type BlogPostSummary = {
   slug: string;
   title: string;
   status: BlogStatus;
+  category: string | null;
   excerpt: string | null;
   coverImageUrl: string | null;
   publishedAt: string | null;
@@ -29,6 +30,7 @@ export type BlogPostInput = {
   title: string;
   bodyMarkdown: string;
   slug?: string;
+  category?: string;
   excerpt?: string;
   metaTitle?: string;
   metaDescription?: string;

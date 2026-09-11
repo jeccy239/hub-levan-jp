@@ -33,6 +33,8 @@ function readForm(formData: FormData): BlogPostInput {
     status,
   };
   if (s("slug")) input.slug = s("slug");
+  // 空文字は「カテゴリを外す」の意図なので常に送る
+  input.category = s("category");
   if (s("excerpt")) input.excerpt = s("excerpt");
   if (s("metaTitle")) input.metaTitle = s("metaTitle");
   if (s("metaDescription")) input.metaDescription = s("metaDescription");

@@ -89,3 +89,39 @@ textarea:focus {
     transform: none;
   }
 }
+
+/* -------------------------------------------------------------------------
+ * Toast UI Editor（ブログ本文エディタ）をアプリの見た目に寄せる。
+ * ライブラリのCSSはコンポーネント側で読み込み済み。ここは最小限の上書き。
+ * ---------------------------------------------------------------------- */
+.toastui-blog-editor .toastui-editor-defaultUI {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.toastui-blog-editor .toastui-editor-toolbar {
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+.toastui-blog-editor .toastui-editor-defaultUI-toolbar {
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+}
+.toastui-blog-editor .toastui-editor-main .toastui-editor-md-container,
+.toastui-blog-editor .toastui-editor-main .toastui-editor-ww-container {
+  background: var(--surface);
+}
+.toastui-blog-editor .toastui-editor-contents {
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.9;
+  color: var(--text);
+}
+.toastui-blog-editor .toastui-editor-contents h1,
+.toastui-blog-editor .toastui-editor-contents h2 {
+  border-bottom: none;
+}
+.toastui-blog-editor .toastui-editor-mode-switch {
+  background: var(--surface-2);
+  border-top: 1px solid var(--line);
+}

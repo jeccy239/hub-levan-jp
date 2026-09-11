@@ -10,6 +10,7 @@ import {
   type BlogFormState,
 } from "./actions";
 import SeoChecklist, { buildChecks } from "./SeoChecklist";
+import MarkdownGuide from "./MarkdownGuide";
 import type { BlogPost, BlogStatus } from "@/lib/webrisBlog";
 
 const BlogEditor = dynamic(() => import("./BlogEditor"), {
@@ -98,6 +99,7 @@ export default function BlogForm({ post }: { post?: BlogPost }) {
           ツールバーで見出し・リスト・表・画像を追加できます。画像はドラッグ＆ドロップや貼り付けでもアップロードされます。
           左下のタブで Markdown 直接編集に切り替え可能です。
         </p>
+        <MarkdownGuide />
       </div>
 
       {/* 右: SEO + メタ + 公開 */}

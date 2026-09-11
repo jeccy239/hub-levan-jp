@@ -40,6 +40,15 @@ function readForm(formData: FormData): BlogPostInput {
   if (s("metaDescription")) input.metaDescription = s("metaDescription");
   // 空文字は「画像を外す」の意図。キー自体は常に送る。
   input.coverImageUrl = s("coverImageUrl");
+
+  // <input type="datetime-local"> の値（ローカル時刻、タイムゾーン無し）をISOに変換。
+  // 空欄なら「投稿日は変更しない」の意図で送らない。
+  const publishedAtLocal = s("publishedAt");
+  if (publishedAtLocal) {
+    const d = new Date(publishedAtLocal);
+    if (!Number.isNaN(d.getTime())) input.publishedAt = d.toISOString();
+  }
+
   return input;
 }
 

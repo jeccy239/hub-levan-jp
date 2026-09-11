@@ -36,6 +36,9 @@ export type BlogPostInput = {
   metaDescription?: string;
   coverImageUrl?: string;
   status?: BlogStatus;
+  /** ISO 8601。投稿日を手動指定したいとき。WEBRIS側の対応が必要
+   *  （docs/webris-blog-integration.md 参照）。 */
+  publishedAt?: string;
 };
 
 export class BlogNotFoundError extends Error {}

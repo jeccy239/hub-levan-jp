@@ -24,6 +24,15 @@ const BlogEditor = dynamic(() => import("./BlogEditor"), {
   ),
 });
 
+/** ISO文字列 → <input type="datetime-local"> 用のローカル時刻文字列。 */
+function toDatetimeLocal(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 const labelCls = "block text-xs font-medium text-[var(--text-dim)]";
 const inputCls =
   "mt-1 w-full rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:border-[var(--accent)]";
@@ -50,6 +59,7 @@ export default function BlogForm({ post }: { post?: BlogPost }) {
   const [metaDescription, setMetaDescription] = useState(post?.metaDescription ?? "");
   const [cover, setCover] = useState(post?.coverImageUrl ?? "");
   const [status, setStatus] = useState<BlogStatus>(post?.status ?? "draft");
+  const [publishedAt, setPublishedAt] = useState(toDatetimeLocal(post?.publishedAt));
 
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, startUpload] = useTransition();
@@ -87,6 +97,7 @@ export default function BlogForm({ post }: { post?: BlogPost }) {
       <input type="hidden" name="metaDescription" value={metaDescription} />
       <input type="hidden" name="coverImageUrl" value={cover} />
       <input type="hidden" name="status" value={status} />
+      <input type="hidden" name="publishedAt" value={publishedAt} />
 
       {/* 左: タイトル + エディタ */}
       <div className="space-y-4">
@@ -244,6 +255,19 @@ export default function BlogForm({ post }: { post?: BlogPost }) {
               ? "保存すると webris.levan.jp/blog に公開されます（反映まで最大2分）。"
               : "下書きは公開ページには表示されません。"}
           </p>
+
+          <label className="block">
+            <span className={labelCls}>投稿日</span>
+            <input
+              type="datetime-local"
+              value={publishedAt}
+              onChange={(e) => setPublishedAt(e.target.value)}
+              className={inputCls}
+            />
+            <span className="mt-1 block text-[11px] text-[var(--text-dim)] leading-relaxed">
+              空欄なら初回公開時に現在時刻が入ります。過去の日付にすると記事を遡って投稿したように表示できます。
+            </span>
+          </label>
 
           {state.error && (
             <div className="rounded-xl bg-[var(--danger-tint)] px-3.5 py-2.5 text-xs text-[var(--danger)] leading-relaxed">

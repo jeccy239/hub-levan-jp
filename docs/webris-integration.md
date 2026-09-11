@@ -188,6 +188,11 @@ WEBRIS リポジトリの `docs/webris-blog-integration.md`（`GET/POST /api/lev
   環境変数 `BLOB_READ_WRITE_TOKEN` が必要（Vercel で Blob ストアを作成すると自動追加）。
   未設定でも記事は作れるが画像アップロードだけ使えない。
 - Server Action の body 上限を `next.config.ts` で 10MB に拡張（画像アップロード用）。
+- 編集画面に「投稿日」欄（`publishedAt`、`datetime-local`）があり、過去日付への変更を
+  送信できる。**ただし現状のWEBRIS実装はPATCHの`publishedAt`を無視して常に現在時刻で
+  上書きすることを実データで確認済み**（2026-09-11）。WEBRIS側で対応するまでは投稿日を
+  変更しても反映されない。必要な変更は WEBRIS リポジトリの
+  `docs/webris-blog-integration.md` に追記済み。
 
 ## 将来の拡張候補
 

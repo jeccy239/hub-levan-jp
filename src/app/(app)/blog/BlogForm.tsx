@@ -11,6 +11,8 @@ import {
 } from "./actions";
 import SeoChecklist, { buildChecks } from "./SeoChecklist";
 import MarkdownGuide from "./MarkdownGuide";
+import CtaButtonInserter from "./CtaButtonInserter";
+import type { BlogEditorHandle } from "./BlogEditor";
 import type { BlogPost, BlogStatus } from "@/lib/webrisBlog";
 
 const BlogEditor = dynamic(() => import("./BlogEditor"), {
@@ -52,6 +54,7 @@ export default function BlogForm({ post }: { post?: BlogPost }) {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, startUpload] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
+  const editorHandleRef = useRef<BlogEditorHandle | null>(null);
 
   const checks = useMemo(
     () => buildChecks({ title, slug, metaTitle, metaDescription, excerpt, coverImageUrl: cover, body }),
@@ -94,11 +97,17 @@ export default function BlogForm({ post }: { post?: BlogPost }) {
           placeholder="記事のタイトル"
           className="w-full bg-transparent text-[26px] font-semibold tracking-tight text-[var(--text)] placeholder:text-[var(--text-dim)] focus:outline-none"
         />
-        <BlogEditor initialValue={post?.bodyMarkdown ?? ""} onChange={setBody} onUploadImage={uploadImage} />
+        <BlogEditor
+          initialValue={post?.bodyMarkdown ?? ""}
+          onChange={setBody}
+          onUploadImage={uploadImage}
+          onReady={(handle) => (editorHandleRef.current = handle)}
+        />
         <p className="text-[11px] text-[var(--text-dim)]">
           ツールバーで見出し・リスト・表・画像を追加できます。画像はドラッグ＆ドロップや貼り付けでもアップロードされます。
           左下のタブで Markdown 直接編集に切り替え可能です。
         </p>
+        <CtaButtonInserter getEditor={() => editorHandleRef.current} />
         <MarkdownGuide />
       </div>
 

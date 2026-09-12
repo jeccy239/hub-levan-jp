@@ -12,6 +12,8 @@ import {
 import SeoChecklist, { buildChecks } from "./SeoChecklist";
 import MarkdownGuide from "./MarkdownGuide";
 import CtaButtonInserter from "./CtaButtonInserter";
+import CalloutInserter from "./CalloutInserter";
+import TocInserter from "./TocInserter";
 import type { BlogEditorHandle } from "./BlogEditor";
 import type { BlogPost, BlogStatus } from "@/lib/webrisBlog";
 
@@ -118,6 +120,8 @@ export default function BlogForm({ post }: { post?: BlogPost }) {
           ツールバーで見出し・リスト・表・画像を追加できます。画像はドラッグ＆ドロップや貼り付けでもアップロードされます。
           左下のタブで Markdown 直接編集に切り替え可能です。
         </p>
+        <TocInserter getEditor={() => editorHandleRef.current} />
+        <CalloutInserter getEditor={() => editorHandleRef.current} />
         <CtaButtonInserter getEditor={() => editorHandleRef.current} />
         <MarkdownGuide />
       </div>

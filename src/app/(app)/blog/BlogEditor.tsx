@@ -16,6 +16,10 @@ export type BlogEditorHandle = {
   /** カーソル位置に生のHTMLを挿入する。WEBRISの公開ページはMarkdown中の生HTMLを
    *  そのまま出力するため、CTAボタンのような装飾リンクに使える（動作確認済み）。 */
   insertHtml: (html: string) => void;
+  /** 本文全体のMarkdownを取得する（目次挿入など、本文全体を書き換える機能向け）。 */
+  getMarkdown: () => string;
+  /** 本文全体を置き換える。 */
+  setMarkdown: (markdown: string) => void;
 };
 
 export default function BlogEditor({
@@ -58,6 +62,17 @@ export default function BlogEditor({
         ["table", "link"],
         ["image"],
         ["code", "codeblock"],
+        [
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          {
+            name: "highlight",
+            tooltip: "マーカーハイライト（黄色）",
+            command: "highlight",
+            className: "toastui-editor-toolbar-icons last",
+            style: { backgroundImage: "none", fontSize: "12px", fontWeight: "bold", color: "#ca8a04" },
+            text: "HI",
+          } as unknown as string,
+        ],
       ],
       hooks: {
         addImageBlobHook: async (blob, callback) => {
@@ -78,6 +93,21 @@ export default function BlogEditor({
     editor.on("change", () => onChangeRef.current(editor.getMarkdown()));
     editorRef.current = editor;
 
+    // ハイライトコマンド: 選択テキストを <mark> でラップ。
+    // addCommand は型定義にないが実行時には存在する (Toast UI Editor v3)。
+    const editorAny = editor as unknown as { addCommand: (mode: string, name: string, fn: () => boolean) => void };
+    const insertMark = (mode: string) => {
+      editorAny.addCommand(mode, "highlight", () => {
+        const selectedText = window.getSelection()?.toString() || "ハイライト";
+        if (!editor.isMarkdownMode()) editor.changeMode("markdown", true);
+        editor.insertText(`<mark style="background:#fef08a;padding:1px 3px;border-radius:2px">${selectedText}</mark>`);
+        onChangeRef.current(editor.getMarkdown());
+        return true;
+      });
+    };
+    insertMark("wysiwyg");
+    insertMark("markdown");
+
     onReadyRef.current?.({
       insertHtml: (html: string) => {
         // WYSIWYGにテキストとして挿入するとタグがエスケープされてしまう。
@@ -88,6 +118,13 @@ export default function BlogEditor({
         // ボタンの見た目を保つため、挿入後はMarkdown表示のままにする。
         if (!editor.isMarkdownMode()) editor.changeMode("markdown", true);
         editor.insertText(`\n\n${html}\n\n`);
+        onChangeRef.current(editor.getMarkdown());
+      },
+      getMarkdown: () => editor.getMarkdown(),
+      setMarkdown: (markdown: string) => {
+        // insertHtmlと同じ理由でMarkdownモードに切り替えてから差し替える。
+        if (!editor.isMarkdownMode()) editor.changeMode("markdown", true);
+        editor.setMarkdown(markdown);
         onChangeRef.current(editor.getMarkdown());
       },
     });

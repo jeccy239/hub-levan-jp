@@ -90,6 +90,9 @@ model Company {
   // サイト上で公開されている法人の問い合わせ先。特定電子メール法の
   // 「公開されている法人アドレス」例外に該当するもののみを保存する。
   publicEmail     String?
+  // サイトのトップページで見つかったInstagramプロフィールリンク。個人EC
+  // ショップはメールでの営業メール送信ではなくDM経由での営業を前提とする。
+  instagramUrl    String?
   // サイト解析で検出したツール（Hotjar, GTM 等）とSEO上の不足点
   detectedTools   Json?
   seoGaps         Json?

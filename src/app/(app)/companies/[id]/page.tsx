@@ -230,6 +230,15 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             <input name="phone" defaultValue={company.phone ?? ""} className={`mt-1 w-full ${inputClass}`} />
           </label>
           <label className="text-xs text-[var(--text-dim)]">
+            Instagram（DM用）
+            <input
+              name="instagramUrl"
+              placeholder="https://www.instagram.com/..."
+              defaultValue={company.instagramUrl ?? ""}
+              className={`mt-1 w-full ${inputClass}`}
+            />
+          </label>
+          <label className="text-xs text-[var(--text-dim)]">
             郵便番号
             <input name="postalCode" defaultValue={company.postalCode ?? ""} className={`mt-1 w-full ${inputClass}`} />
           </label>

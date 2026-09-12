@@ -53,6 +53,7 @@ export default async function SalesAiPage() {
     tools: Array.isArray(l.company.detectedTools) ? (l.company.detectedTools as string[]) : [],
     gapCount: Array.isArray(l.company.seoGaps) ? (l.company.seoGaps as string[]).length : 0,
     recipient: l.company.publicEmail ?? l.company.contacts[0]?.email ?? null,
+    instagramUrl: l.company.instagramUrl,
   }));
 
   const sendableCount = rows.filter((r) => r.recipient).length;

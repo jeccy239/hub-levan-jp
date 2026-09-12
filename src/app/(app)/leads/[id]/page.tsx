@@ -75,12 +75,24 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             {lead.company.name}
           </h1>
           <p className="text-[var(--text-dim)]">{lead.company.website}</p>
-          <Link
-            href={`/companies/${lead.company.id}`}
-            className="text-xs text-[var(--accent)] hover:underline"
-          >
-            顧客詳細を見る →
-          </Link>
+          <div className="flex items-center gap-3 mt-1">
+            <Link
+              href={`/companies/${lead.company.id}`}
+              className="text-xs text-[var(--accent)] hover:underline"
+            >
+              顧客詳細を見る →
+            </Link>
+            {lead.company.instagramUrl && (
+              <a
+                href={lead.company.instagramUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-[var(--accent)] hover:underline"
+              >
+                📷 Instagramを見る（DM用） →
+              </a>
+            )}
+          </div>
         </div>
         <span className="px-3 py-1 rounded-full text-xs font-medium bg-[var(--accent-tint)] text-[var(--accent-strong)]">
           {LEAD_STATUS_LABEL[lead.status] ?? lead.status}

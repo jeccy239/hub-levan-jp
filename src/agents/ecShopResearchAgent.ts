@@ -164,13 +164,12 @@ export async function registerEcShopProspects(params: {
         industry: params.category,
         toolInterest: EC_CATEGORY_LABEL,
         publicEmail: audit.publicEmail,
+        instagramUrl: audit.instagramUrl,
         detectedTools: audit.detectedTools,
         seoGaps: audit.seoGaps,
         lastAuditedAt: new Date(),
         leadSourceId,
-        note: [`${platformLabel}の個人ECショップ（手動登録）`, audit.instagramUrl ? `Instagram: ${audit.instagramUrl}` : null]
-          .filter(Boolean)
-          .join(" / "),
+        note: `${platformLabel}の個人ECショップ（手動登録）`,
       },
     });
 

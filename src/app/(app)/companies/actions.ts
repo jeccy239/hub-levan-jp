@@ -42,6 +42,7 @@ export async function updateCompany(formData: FormData) {
     postalCode: String(formData.get("postalCode") ?? "").trim() || null,
     address: String(formData.get("address") ?? "").trim() || null,
     phone: String(formData.get("phone") ?? "").trim() || null,
+    instagramUrl: String(formData.get("instagramUrl") ?? "").trim() || null,
     employeeRange: String(formData.get("employeeRange") ?? "").trim() || null,
     revenueRange: String(formData.get("revenueRange") ?? "").trim() || null,
     note: String(formData.get("note") ?? "").trim() || null,

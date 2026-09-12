@@ -14,6 +14,7 @@ export type LeadRow = {
   tools: string[];
   gapCount: number;
   recipient: string | null;
+  instagramUrl: string | null;
 };
 
 const CATEGORIES = [
@@ -130,6 +131,17 @@ export default function LeadTable({ rows, sendableCount }: { rows: LeadRow[]; se
                       <span className="opacity-60">公開アドレス無し（フォーム/電話で個別対応）</span>
                     )}
                   </div>
+                  {r.instagramUrl && (
+                    <a
+                      href={r.instagramUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-xs text-[var(--accent)] hover:underline mt-0.5 inline-block"
+                    >
+                      📷 Instagramを見る（DM用）
+                    </a>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1">

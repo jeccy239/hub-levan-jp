@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getSenderName, requireApprover, requireUser } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
 import { discoverProspectCompanies } from "@/agents/leadResearchAgent";
+import { registerEcShopProspects, parseShopUrls } from "@/agents/ecShopResearchAgent";
 import { draftTemplate, sendBulkOutreach, sendTestEmail } from "@/agents/salesAgent";
 import { GbizApiError, GbizNotConfiguredError } from "@/lib/gbizinfo";
 import { collectRecipients, parseManualEmails, type Recipient } from "@/lib/recipients";
@@ -24,6 +25,24 @@ export async function runProspectingAction(formData?: FormData) {
     }
     throw e;
   }
+}
+
+export async function runEcShopProspectingAction(formData?: FormData) {
+  await requireUser();
+  const category = String(formData?.get("category") ?? "");
+  const urlsRaw = String(formData?.get("urls") ?? "");
+  const urls = parseShopUrls(urlsRaw);
+
+  if (!category) {
+    return { ok: false as const, error: "カテゴリを選択してください。" };
+  }
+  if (urls.length === 0) {
+    return { ok: false as const, error: "有効なショップURLが1件もありません。" };
+  }
+
+  const r = await registerEcShopProspects({ urls, category });
+  revalidatePath("/sales-ai");
+  return { ok: true as const, ...r };
 }
 
 export async function sendTestEmailAction(formData: FormData) {

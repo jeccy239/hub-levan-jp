@@ -21,6 +21,7 @@ const CATEGORIES = [
   "ヒートマップツール利用企業",
   "LLMOツール利用企業",
   "広告代理店",
+  "個人ECショップ",
 ] as const;
 
 const STATUS_STYLE: Record<string, string> = {

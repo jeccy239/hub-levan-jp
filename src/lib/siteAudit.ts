@@ -45,6 +45,8 @@ export type SiteAudit = {
   publicEmail: string | null;
   seoGaps: string[];
   title: string | null;
+  /** トップページ上で見つかったInstagramプロフィールリンク（あれば） */
+  instagramUrl: string | null;
 };
 
 const FETCH_TIMEOUT_MS = 6000;
@@ -80,13 +82,24 @@ async function fetchHtml(url: string): Promise<string | null> {
 // 送れるのは「サイトで公開されている法人のアドレス」に限られるため。
 const GENERIC_LOCAL_PARTS = /^(info|contact|inquiry|support|sales|office|mail|desk|toiawase|otoiawase|hello|marketing|pr)$/i;
 
-function extractPublicEmail(html: string, host: string): string | null {
+/**
+ * `relaxed` はドメイン一致を要求しない。BASE/Shopify/STORES等のショップは
+ * 独自ドメインを持たず（例: xxx.base.shop）、特定商取引法ページに載る
+ * 事業者の連絡先は個人のGmail等サイトと無関係なドメインになるのが通常。
+ * そのため「特定商取引法」等のキーワードで明示的に辿り着いた開示ページに
+ * 限り、ドメイン不一致でも１通だけ拾う（同一ページに複数あれば法人ドメイン
+ * 一致・genericローカルパートを優先）。トップページ解析（relaxed=false）
+ * では従来通りドメイン一致を要求し、ページ埋め込みウィジェット等のノイズを
+ * 誤って拾わないようにする。
+ */
+function extractPublicEmail(html: string, host: string, relaxed = false): string | null {
   const candidates = new Set<string>();
   for (const m of html.matchAll(/mailto:([^"'?\s>]+)/gi)) candidates.add(m[1]);
   for (const m of html.matchAll(/[\w.+-]+@[\w-]+\.[\w.-]+/g)) candidates.add(m[0]);
 
   const rootDomain = host.replace(/^www\./, "");
   let fallback: string | null = null;
+  let anyValid: string | null = null;
 
   for (const raw of candidates) {
     const email = raw.trim().toLowerCase().replace(/[.,;]$/, "");
@@ -98,8 +111,21 @@ function extractPublicEmail(html: string, host: string): string | null {
     const sameOrg = domain === rootDomain || domain.endsWith(`.${rootDomain}`);
     if (sameOrg && GENERIC_LOCAL_PARTS.test(local)) return email; // best case
     if (!fallback && sameOrg) fallback = email;
+    if (!anyValid) anyValid = email;
   }
-  return fallback;
+  return fallback ?? (relaxed ? anyValid : null);
+}
+
+/** トップページに載っている最初のInstagramプロフィールへのリンクを拾う。
+ *  シェアボタン（sharer.php等）や画像CDNは除外し、プロフィールURLらしい
+ *  ものだけを返す。個人ECショップの多くはここからSNS集客をしているため、
+ *  「Google経由の流入が弱い」という営業理由の裏付けに使う。 */
+function extractInstagramUrl(html: string): string | null {
+  const m = html.match(/https?:\/\/(?:www\.)?instagram\.com\/([A-Za-z0-9_.]{2,30})/i);
+  if (!m) return null;
+  const handle = m[1].toLowerCase();
+  if (["p", "reel", "stories", "explore", "share", "accounts"].includes(handle)) return null;
+  return `https://www.instagram.com/${m[1]}`;
 }
 
 function findSeoGaps(html: string): string[] {
@@ -142,6 +168,7 @@ export async function auditWebsite(rawUrl: string): Promise<SiteAudit> {
     publicEmail: null,
     seoGaps: [],
     title: null,
+    instagramUrl: null,
   };
 
   let host: string;
@@ -156,17 +183,19 @@ export async function auditWebsite(rawUrl: string): Promise<SiteAudit> {
 
   // トップページにアドレスが無い場合のみ、トップから辿れる問い合わせページを
   // 1枚だけ追加で見る（多くの日本企業はフォーム設置でトップには載せないため）。
+  // 個人のBASE/Shopify/STORESショップの場合は「特定商取引法に基づく表記」
+  // ページが最も確実なソース（法律上、事業者の連絡先の記載が義務のため）。
   let publicEmail = extractPublicEmail(html, host);
   if (!publicEmail) {
     const contactHref = html.match(
-      /href=["']([^"']*(?:contact|inquiry|toiawase|otoiawase|お問い合わせ|問合)[^"']*)["']/i,
+      /href=["']([^"']*(?:contact|inquiry|toiawase|otoiawase|legal|tokushoho|お問い合わせ|問合|特定商取引)[^"']*)["']/i,
     )?.[1];
     if (contactHref) {
       try {
         const contactUrl = new URL(contactHref, url).toString();
         if (new URL(contactUrl).hostname === host) {
           const contactHtml = await fetchHtml(contactUrl);
-          if (contactHtml) publicEmail = extractPublicEmail(contactHtml, host);
+          if (contactHtml) publicEmail = extractPublicEmail(contactHtml, host, true);
         }
       } catch {
         // 不正なhrefは無視
@@ -191,6 +220,7 @@ export async function auditWebsite(rawUrl: string): Promise<SiteAudit> {
     publicEmail,
     seoGaps: findSeoGaps(html),
     title: html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim().slice(0, 200) ?? null,
+    instagramUrl: extractInstagramUrl(html),
   };
 }
 

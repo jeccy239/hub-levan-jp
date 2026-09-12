@@ -26,6 +26,7 @@ const LEAD_SOURCES = [
   "展示会",
   "既存顧客",
   "アウトバウンド",
+  "BASE/Shopify個人ECショップ",
   "その他",
 ];
 

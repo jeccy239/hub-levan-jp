@@ -23,13 +23,10 @@ import type { BlogEditorHandle } from "./BlogEditor";
 //
 // 再実行すると前回挿入した目次・アンカーを検出して置き換える（累積しない）。
 //
-// H2見出しには①②③...の丸数字を自動で採番する（目次・本文の両方）。プレーンな
-// 半角数字(1,2,3)は使わない — 著者が見出しに手打ちで通し番号（1, 2, 3...）を
-// 付けている記事があり、同じ半角数字の自動採番だと「11」「22」のように連結して
-// 二重表示になってしまったため。丸数字なら見た目上も衝突しない。
-// 自動採番した①②③は<span class="NUM_CLASS">で囲み、再実行時にそれだけを検出して
-// 除去できるようにしている（著者が手打ちした①②と区別するため。手打ちのものは
-// スタイルを持たないただのテキストなので誤って消さない）。
+// H2見出しには青い丸バッジ（白文字の数字）を自動で採番する（目次・本文の両方）。
+// バッジは<span class="NUM_CLASS">で囲み、再実行時にそれだけを検出して除去できる
+// ようにしている（著者が見出しに手打ちで別の番号を書いていても、バッジは見た目上
+// 独立したUI要素なので混ざって「11」のように連結表示にはならない）。
 
 const TOC_START = "<!-- levanhub-toc:start -->";
 const TOC_END = "<!-- levanhub-toc:end -->";
@@ -38,13 +35,15 @@ const BADGE_CLASS = "levanhub-toc-heading-badge";
 const NUM_CLASS = "levanhub-toc-num";
 const MARKER = "[目次]";
 
-const CIRCLED_DIGITS = [
-  "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩",
-  "⑪", "⑫", "⑬", "⑭", "⑮", "⑯", "⑰", "⑱", "⑲", "⑳",
-];
+// 丸バッジの見た目。基本の見た目は必ずインラインstyleで完結させる（既存の目次
+// デザインで確認済みの方針を踏襲）。
+const NUM_BADGE_STYLE =
+  "display:inline-block;width:22px;height:22px;border-radius:50%;background:#3b82f6;" +
+  "color:#fff;font-size:12px;font-weight:700;line-height:22px;text-align:center;" +
+  "vertical-align:middle;flex:none";
 
-function circledNumber(n: number): string {
-  return CIRCLED_DIGITS[n - 1] ?? `(${n})`;
+function numberBadge(n: number): string {
+  return `<span class="${NUM_CLASS}" style="${NUM_BADGE_STYLE}">${n}</span>`;
 }
 
 type Heading = { level: 2 | 3; text: string; anchor: string };
@@ -58,7 +57,7 @@ function stripPreviousToc(md: string): string {
     .replace(new RegExp(`${TOC_START}[\\s\\S]*?${TOC_END}\\n*`, "g"), "")
     .replace(new RegExp(`<a name="${ANCHOR_PREFIX}\\d+"></a>\\n*`, "g"), "")
     .replace(new RegExp(`^(#{2,3}\\s+)<span class="${BADGE_CLASS}"[^>]*>\\d+</span>\\s*`, "gm"), "$1")
-    .replace(new RegExp(`^(#{2,3}\\s+)<span class="${NUM_CLASS}">[^<]*</span>\\s*`, "gm"), "$1");
+    .replace(new RegExp(`^(#{2,3}\\s+)<span class="${NUM_CLASS}"[^>]*>[^<]*</span>\\s*`, "gm"), "$1");
 }
 
 function extractHeadings(md: string): Heading[] {
@@ -73,8 +72,7 @@ function extractHeadings(md: string): Heading[] {
   return headings;
 }
 
-/** 各見出しの直前にアンカーを差し込み、H2見出しには丸数字（①②③...）を自動で
- *  差し込む。丸数字はNUM_CLASSのspanで囲み、再実行時に検出・除去できるようにする。 */
+/** 各見出しの直前にアンカーを差し込み、H2見出しには青い丸バッジを自動で差し込む。 */
 function decorateHeadings(md: string): string {
   let n = 0;
   let topIndex = 0;
@@ -84,7 +82,7 @@ function decorateHeadings(md: string): string {
     let prefix = "";
     if (hashes.length === 2) {
       topIndex++;
-      prefix = `<span class="${NUM_CLASS}">${circledNumber(topIndex)}</span> `;
+      prefix = `${numberBadge(topIndex)} `;
     }
     return `<a name="${anchor}"></a>\n\n${hashes}${spacing}${prefix}${text}`;
   });
@@ -103,7 +101,7 @@ function tocLink(anchor: string, text: string): string {
   );
 }
 
-/** H2は丸数字、H3は三角ブレットで表現する2階層のリストを組む。
+/** H2は青い丸バッジ、H3は三角ブレットで表現する2階層のリストを組む。
  *  各<li>自体はflexにしない（flexにすると、あとに続くネストした<ul>まで横並びの
  *  flexアイテム扱いになってしまい、右にズレて表示される）。ブレット+リンクだけを
  *  内側の<div>でflexにし、ネストした<ul>はその外・<li>直下のブロックとして続ける。 */
@@ -124,7 +122,7 @@ function buildTocList(headings: Heading[]): string {
       html +=
         `<li style="list-style:none;margin:0 0 10px">` +
         `<div style="display:flex;align-items:flex-start;gap:8px">` +
-        `<span style="flex:none;color:#9ca3af;font-size:13px;margin-top:3px">${circledNumber(topIndex)}</span>` +
+        numberBadge(topIndex) +
         tocLink(h.anchor, h.text) +
         `</div>`;
       topOpen = true;
@@ -217,7 +215,7 @@ export default function TocInserter({ getEditor }: { getEditor: () => BlogEditor
             すでに目次がある状態でもう一度実行すると、見出しの追加・変更に合わせて作り直します。
           </p>
           <p className="text-[11px] text-[var(--text-dim)] leading-relaxed">
-            本文中の見出し（##）の横にも、目次と同じ①②③の丸数字を自動で表示します。
+            本文中の見出し（##）の横にも、目次と同じ青い丸バッジを自動で表示します。
           </p>
           {error && <p className="text-[11px] text-[var(--danger)] leading-relaxed">{error}</p>}
           <button

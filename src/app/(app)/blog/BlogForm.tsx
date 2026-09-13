@@ -69,6 +69,12 @@ export default function BlogForm({ post }: { post?: BlogPost }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const editorHandleRef = useRef<BlogEditorHandle | null>(null);
 
+  // 目次・CTAボタン・ハイライトボックスなどは生HTMLを本文に埋め込む。WYSIWYGモードで
+  // 開くとToast UI Editorのパーサーがdiv/spanなど未対応のタグを読み捨ててしまい、
+  // 何も編集せず保存しただけでそれらが本文から消えてしまう（動作確認済み）。
+  // 生HTMLを含む記事は必ずMarkdownモードで開き、事故を防ぐ。
+  const hasRawHtml = useMemo(() => /<[a-z][^>]*>/i.test(post?.bodyMarkdown ?? ""), [post?.bodyMarkdown]);
+
   const checks = useMemo(
     () => buildChecks({ title, slug, metaTitle, metaDescription, excerpt, coverImageUrl: cover, body }),
     [title, slug, metaTitle, metaDescription, excerpt, cover, body],
@@ -113,6 +119,7 @@ export default function BlogForm({ post }: { post?: BlogPost }) {
         />
         <BlogEditor
           initialValue={post?.bodyMarkdown ?? ""}
+          initialEditType={hasRawHtml ? "markdown" : "wysiwyg"}
           onChange={setBody}
           onUploadImage={uploadImage}
           onReady={(handle) => (editorHandleRef.current = handle)}
@@ -121,6 +128,12 @@ export default function BlogForm({ post }: { post?: BlogPost }) {
           ツールバーで見出し・リスト・表・画像を追加できます。画像はドラッグ＆ドロップや貼り付けでもアップロードされます。
           左下のタブで Markdown 直接編集に切り替え可能です。
         </p>
+        {hasRawHtml && (
+          <p className="text-[11px] text-[var(--gold)] leading-relaxed">
+            この記事には目次・CTAボタンなどの生HTMLが含まれるため、Markdown表示で開いています。
+            <strong>WYSIWYGに切り替えて保存すると、それらのHTMLが本文から失われます。</strong>
+          </p>
+        )}
         <TocInserter getEditor={() => editorHandleRef.current} />
         <HighlightMarkerConverter getEditor={() => editorHandleRef.current} />
         <CalloutInserter getEditor={() => editorHandleRef.current} />

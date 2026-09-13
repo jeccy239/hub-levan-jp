@@ -24,11 +24,19 @@ export type BlogEditorHandle = {
 
 export default function BlogEditor({
   initialValue,
+  initialEditType = "wysiwyg",
   onChange,
   onUploadImage,
   onReady,
 }: {
   initialValue: string;
+  /**
+   * 本文に目次・CTAボタン・ハイライトボックスなどの生HTMLが含まれる記事は
+   * "markdown" を指定すること。WYSIWYGモードで開くと、Toast UI Editorの
+   * パーサーがdiv/spanなど未対応のタグを構造ごと読み捨ててしまい、何も編集
+   * しないまま保存しただけで目次などが本文から消えてしまう（動作確認済み）。
+   */
+  initialEditType?: "markdown" | "wysiwyg";
   onChange: (markdown: string) => void;
   /** blob を受け取り、公開画像URLを返す。失敗時は throw。 */
   onUploadImage: (file: File) => Promise<string>;
@@ -49,7 +57,7 @@ export default function BlogEditor({
     const editor = new Editor({
       el: holderRef.current,
       height: "600px",
-      initialEditType: "wysiwyg",
+      initialEditType,
       previewStyle: "vertical",
       initialValue: initialValue || "",
       usageStatistics: false,

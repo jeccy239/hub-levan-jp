@@ -23,16 +23,29 @@ import type { BlogEditorHandle } from "./BlogEditor";
 //
 // 再実行すると前回挿入した目次・アンカーを検出して置き換える（累積しない）。
 //
-// 目次項目・本文見出しのどちらにも数字の自動採番は行わない（①②のような
-// 手動採番と重複して二重に数字が見えてしまうため。手動採番は著者の自由に任せる）。
-// BADGE_CLASSは過去バージョンで本文見出しに挿入していたバッジ要素を後方互換で
-// 掃除するためだけに残している（stripPreviousToc参照）。
+// H2見出しには①②③...の丸数字を自動で採番する（目次・本文の両方）。プレーンな
+// 半角数字(1,2,3)は使わない — 著者が見出しに手打ちで通し番号（1, 2, 3...）を
+// 付けている記事があり、同じ半角数字の自動採番だと「11」「22」のように連結して
+// 二重表示になってしまったため。丸数字なら見た目上も衝突しない。
+// 自動採番した①②③は<span class="NUM_CLASS">で囲み、再実行時にそれだけを検出して
+// 除去できるようにしている（著者が手打ちした①②と区別するため。手打ちのものは
+// スタイルを持たないただのテキストなので誤って消さない）。
 
 const TOC_START = "<!-- levanhub-toc:start -->";
 const TOC_END = "<!-- levanhub-toc:end -->";
 const ANCHOR_PREFIX = "levanhub-toc-";
 const BADGE_CLASS = "levanhub-toc-heading-badge";
+const NUM_CLASS = "levanhub-toc-num";
 const MARKER = "[目次]";
+
+const CIRCLED_DIGITS = [
+  "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩",
+  "⑪", "⑫", "⑬", "⑭", "⑮", "⑯", "⑰", "⑱", "⑲", "⑳",
+];
+
+function circledNumber(n: number): string {
+  return CIRCLED_DIGITS[n - 1] ?? `(${n})`;
+}
 
 type Heading = { level: 2 | 3; text: string; anchor: string };
 
@@ -44,7 +57,8 @@ function stripPreviousToc(md: string): string {
   return md
     .replace(new RegExp(`${TOC_START}[\\s\\S]*?${TOC_END}\\n*`, "g"), "")
     .replace(new RegExp(`<a name="${ANCHOR_PREFIX}\\d+"></a>\\n*`, "g"), "")
-    .replace(new RegExp(`^(#{2,3}\\s+)<span class="${BADGE_CLASS}"[^>]*>\\d+</span>\\s*`, "gm"), "$1");
+    .replace(new RegExp(`^(#{2,3}\\s+)<span class="${BADGE_CLASS}"[^>]*>\\d+</span>\\s*`, "gm"), "$1")
+    .replace(new RegExp(`^(#{2,3}\\s+)<span class="${NUM_CLASS}">[^<]*</span>\\s*`, "gm"), "$1");
 }
 
 function extractHeadings(md: string): Heading[] {
@@ -59,14 +73,20 @@ function extractHeadings(md: string): Heading[] {
   return headings;
 }
 
-/** 各見出しの直前にアンカーを差し込む。本文の見出し自体は書き換えない
- *  （数字の自動採番は行わない。①②のような手動採番は著者の自由に任せる）。 */
+/** 各見出しの直前にアンカーを差し込み、H2見出しには丸数字（①②③...）を自動で
+ *  差し込む。丸数字はNUM_CLASSのspanで囲み、再実行時に検出・除去できるようにする。 */
 function decorateHeadings(md: string): string {
   let n = 0;
+  let topIndex = 0;
   return md.replace(/^(#{2,3})(\s+)(.+)$/gm, (_line, hashes: string, spacing: string, text: string) => {
     n++;
     const anchor = `${ANCHOR_PREFIX}${n}`;
-    return `<a name="${anchor}"></a>\n\n${hashes}${spacing}${text}`;
+    let prefix = "";
+    if (hashes.length === 2) {
+      topIndex++;
+      prefix = `<span class="${NUM_CLASS}">${circledNumber(topIndex)}</span> `;
+    }
+    return `<a name="${anchor}"></a>\n\n${hashes}${spacing}${prefix}${text}`;
   });
 }
 
@@ -83,12 +103,15 @@ function tocLink(anchor: string, text: string): string {
   );
 }
 
-/** H2・H3ともに三角ブレットで表現する（数字の自動採番はしない。①②のような
- *  手動採番と重複して見えてしまうため）。H3はH2よりインデントしてネストを表現する。 */
+/** H2は丸数字、H3は三角ブレットで表現する2階層のリストを組む。
+ *  各<li>自体はflexにしない（flexにすると、あとに続くネストした<ul>まで横並びの
+ *  flexアイテム扱いになってしまい、右にズレて表示される）。ブレット+リンクだけを
+ *  内側の<div>でflexにし、ネストした<ul>はその外・<li>直下のブロックとして続ける。 */
 function buildTocList(headings: Heading[]): string {
   let html = "";
   let topOpen = false;
   let subOpen = false;
+  let topIndex = 0;
 
   for (const h of headings) {
     if (h.level === 2) {
@@ -97,10 +120,13 @@ function buildTocList(headings: Heading[]): string {
         subOpen = false;
       }
       if (topOpen) html += "</li>";
+      topIndex++;
       html +=
-        `<li style="display:flex;align-items:flex-start;gap:10px;margin:0 0 10px;list-style:none">` +
-        `<span style="flex:none;color:#9ca3af;font-size:11px;margin-top:5px">▶</span>` +
-        tocLink(h.anchor, h.text);
+        `<li style="list-style:none;margin:0 0 10px">` +
+        `<div style="display:flex;align-items:flex-start;gap:8px">` +
+        `<span style="flex:none;color:#9ca3af;font-size:13px;margin-top:3px">${circledNumber(topIndex)}</span>` +
+        tocLink(h.anchor, h.text) +
+        `</div>`;
       topOpen = true;
     } else {
       if (!subOpen) {
@@ -108,9 +134,10 @@ function buildTocList(headings: Heading[]): string {
         subOpen = true;
       }
       html +=
-        `<li style="display:flex;align-items:flex-start;gap:8px;margin:0 0 8px;list-style:none">` +
+        `<li style="list-style:none;margin:0 0 8px">` +
+        `<div style="display:flex;align-items:flex-start;gap:8px">` +
         `<span style="flex:none;color:#9ca3af;font-size:10px;margin-top:5px">▶</span>` +
-        `${tocLink(h.anchor, h.text)}</li>`;
+        `${tocLink(h.anchor, h.text)}</div></li>`;
     }
   }
   if (subOpen) html += "</ul>";
@@ -188,6 +215,9 @@ export default function TocInserter({ getEditor }: { getEditor: () => BlogEditor
           </p>
           <p className="text-[11px] text-[var(--text-dim)] leading-relaxed">
             すでに目次がある状態でもう一度実行すると、見出しの追加・変更に合わせて作り直します。
+          </p>
+          <p className="text-[11px] text-[var(--text-dim)] leading-relaxed">
+            本文中の見出し（##）の横にも、目次と同じ①②③の丸数字を自動で表示します。
           </p>
           {error && <p className="text-[11px] text-[var(--danger)] leading-relaxed">{error}</p>}
           <button

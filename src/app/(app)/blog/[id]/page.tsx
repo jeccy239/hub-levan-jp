@@ -59,8 +59,15 @@ export default async function EditBlogPostPage({
               公開ページを開く ↗
             </a>
           )}
-          <span className="ml-auto text-[12px] text-[var(--text-dim)] tabular-nums" title="閲覧数（ページビュー）">
-            👁 {post.viewCount.toLocaleString("ja-JP")}
+          <span
+            className="ml-auto flex items-center gap-1 text-[12px] text-[var(--text-dim)] tabular-nums"
+            title="閲覧数（ページビュー）"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" className="size-3.5 shrink-0">
+              <path d="M10 3.5C5.5 3.5 2 10 2 10s3.5 6.5 8 6.5 8-6.5 8-6.5-3.5-6.5-8-6.5Zm0 10.5a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z" />
+              <circle cx="10" cy="10" r="2" />
+            </svg>
+            {post.viewCount.toLocaleString("ja-JP")}
           </span>
         </div>
       </div>

@@ -14,6 +14,7 @@ import MarkdownGuide from "./MarkdownGuide";
 import CtaButtonInserter from "./CtaButtonInserter";
 import CalloutInserter from "./CalloutInserter";
 import TocInserter from "./TocInserter";
+import HighlightMarkerConverter from "./HighlightMarkerConverter";
 import type { BlogEditorHandle } from "./BlogEditor";
 import type { BlogPost, BlogStatus } from "@/lib/webrisBlog";
 
@@ -121,6 +122,7 @@ export default function BlogForm({ post }: { post?: BlogPost }) {
           左下のタブで Markdown 直接編集に切り替え可能です。
         </p>
         <TocInserter getEditor={() => editorHandleRef.current} />
+        <HighlightMarkerConverter getEditor={() => editorHandleRef.current} />
         <CalloutInserter getEditor={() => editorHandleRef.current} />
         <CtaButtonInserter getEditor={() => editorHandleRef.current} />
         <MarkdownGuide />

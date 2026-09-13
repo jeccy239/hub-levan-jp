@@ -13,6 +13,11 @@ const ROWS: { input: string; result: string; note?: string }[] = [
   { input: "**太字**", result: "太字" },
   { input: "*斜体*", result: "斜体" },
   { input: "~~打ち消し~~", result: "打ち消し線" },
+  {
+    input: "<m>文字</m>",
+    result: "ハイライト（黄色マーカー）",
+    note: '本文中に書いた後、下の「<m>文字</m>をハイライトに変換」ボタンを押すと反映される',
+  },
   { input: "- 項目", result: "箇条書き" },
   { input: "1. 項目", result: "番号付きリスト" },
   { input: "- [ ] 未完了\n- [x] 完了", result: "チェックリスト" },

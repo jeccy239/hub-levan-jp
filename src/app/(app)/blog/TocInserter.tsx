@@ -22,10 +22,15 @@ import type { BlogEditorHandle } from "./BlogEditor";
 // 依存しない。
 //
 // 再実行すると前回挿入した目次・アンカーを検出して置き換える（累積しない）。
+//
+// H2見出しの本文側にも、目次の丸バッジと同じ意匠の番号バッジをインラインHTMLで
+// 差し込む（見た目を目次と本文で揃えるため）。バッジ番号は目次側のtopIndexと
+// 同じ採番ルール（H2のみカウント、H3はカウントしない）。
 
 const TOC_START = "<!-- levanhub-toc:start -->";
 const TOC_END = "<!-- levanhub-toc:end -->";
 const ANCHOR_PREFIX = "levanhub-toc-";
+const BADGE_CLASS = "levanhub-toc-heading-badge";
 const MARKER = "[目次]";
 
 type Heading = { level: 2 | 3; text: string; anchor: string };
@@ -37,7 +42,8 @@ function escapeHtml(s: string): string {
 function stripPreviousToc(md: string): string {
   return md
     .replace(new RegExp(`${TOC_START}[\\s\\S]*?${TOC_END}\\n*`, "g"), "")
-    .replace(new RegExp(`<a name="${ANCHOR_PREFIX}\\d+"></a>\\n*`, "g"), "");
+    .replace(new RegExp(`<a name="${ANCHOR_PREFIX}\\d+"></a>\\n*`, "g"), "")
+    .replace(new RegExp(`^(#{2,3}\\s+)<span class="${BADGE_CLASS}"[^>]*>\\d+</span>\\s*`, "gm"), "$1");
 }
 
 function extractHeadings(md: string): Heading[] {
@@ -52,11 +58,25 @@ function extractHeadings(md: string): Heading[] {
   return headings;
 }
 
-function insertAnchors(md: string): string {
+// 見出し横の丸バッジ。目次側の丸バッジ（buildTocList内）と色・サイズを揃えている。
+const HEADING_BADGE_STYLE =
+  "display:inline-block;width:22px;height:22px;border-radius:50%;background:#9ca3af;" +
+  "color:#fff;font-size:12px;font-weight:700;line-height:22px;text-align:center;" +
+  "vertical-align:middle;margin-right:8px";
+
+/** 各見出しの直前にアンカーを、H2見出しには目次と同じ丸バッジを差し込む。 */
+function decorateHeadings(md: string): string {
   let n = 0;
-  return md.replace(/^(#{2,3})\s+(.+)$/gm, (line) => {
+  let topIndex = 0;
+  return md.replace(/^(#{2,3})(\s+)(.+)$/gm, (_line, hashes: string, spacing: string, text: string) => {
     n++;
-    return `<a name="${ANCHOR_PREFIX}${n}"></a>\n\n${line}`;
+    const anchor = `${ANCHOR_PREFIX}${n}`;
+    let badge = "";
+    if (hashes.length === 2) {
+      topIndex++;
+      badge = `<span class="${BADGE_CLASS}" style="${HEADING_BADGE_STYLE}">${topIndex}</span> `;
+    }
+    return `<a name="${anchor}"></a>\n\n${hashes}${spacing}${badge}${text}`;
   });
 }
 
@@ -141,7 +161,7 @@ export default function TocInserter({ getEditor }: { getEditor: () => BlogEditor
       return;
     }
 
-    const withAnchors = insertAnchors(cleaned);
+    const withAnchors = decorateHeadings(cleaned);
     const toc = buildTocHtml(headings);
 
     // 本文中に [目次] という行があればそこに展開する。無ければ先頭に差し込む。
@@ -180,6 +200,9 @@ export default function TocInserter({ getEditor }: { getEditor: () => BlogEditor
           </p>
           <p className="text-[11px] text-[var(--text-dim)] leading-relaxed">
             すでに目次がある状態でもう一度実行すると、見出しの追加・変更に合わせて作り直します。
+          </p>
+          <p className="text-[11px] text-[var(--text-dim)] leading-relaxed">
+            本文中の見出し（##）の横にも、目次と同じ丸い番号バッジを自動で表示します。
           </p>
           {error && <p className="text-[11px] text-[var(--danger)] leading-relaxed">{error}</p>}
           <button

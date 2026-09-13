@@ -25,6 +25,7 @@ export type BlogEditorHandle = {
 export default function BlogEditor({
   initialValue,
   initialEditType = "wysiwyg",
+  hideModeSwitch = false,
   onChange,
   onUploadImage,
   onReady,
@@ -37,6 +38,12 @@ export default function BlogEditor({
    * しないまま保存しただけで目次などが本文から消えてしまう（動作確認済み）。
    */
   initialEditType?: "markdown" | "wysiwyg";
+  /**
+   * Markdown/WYSIWYG の切り替えタブ自体を隠す。生HTMLを含む記事で使う。
+   * Markdownで開くだけでは、利用者がタブでWYSIWYGへ切り替えた時点で同じように
+   * 生HTMLが失われてしまうため、切り替え手段ごと塞いで事故を防ぐ。
+   */
+  hideModeSwitch?: boolean;
   onChange: (markdown: string) => void;
   /** blob を受け取り、公開画像URLを返す。失敗時は throw。 */
   onUploadImage: (file: File) => Promise<string>;
@@ -58,6 +65,7 @@ export default function BlogEditor({
       el: holderRef.current,
       height: "600px",
       initialEditType,
+      hideModeSwitch,
       previewStyle: "vertical",
       initialValue: initialValue || "",
       usageStatistics: false,

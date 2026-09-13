@@ -40,6 +40,20 @@ const labelCls = "block text-xs font-medium text-[var(--text-dim)]";
 const inputCls =
   "mt-1 w-full rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:border-[var(--accent)]";
 
+// 目次・CTAボタン・ハイライトなどは生HTMLとして本文に埋め込まれる。WYSIWYGへ
+// 切り替えるとToast UI Editorがこれらを読み捨ててしまうため、保存時に「本文から
+// 消えていないか」を最後の砦として確認する。
+const PROTECTED_HTML: { label: string; pattern: RegExp }[] = [
+  { label: "目次", pattern: /<!-- levanhub-toc:start -->/g },
+  { label: "見出しのリンク先アンカー", pattern: /<a name="levanhub-toc-\d+">/g },
+  { label: "ハイライト", pattern: /<mark\b/gi },
+  { label: "CTAボタン・ハイライトボックス", pattern: /<div\b/gi },
+];
+
+function countMatches(s: string, pattern: RegExp): number {
+  return s.match(pattern)?.length ?? 0;
+}
+
 async function uploadImage(file: File): Promise<string> {
   const fd = new FormData();
   fd.set("file", file);
@@ -75,6 +89,34 @@ export default function BlogForm({ post }: { post?: BlogPost }) {
   // 生HTMLを含む記事は必ずMarkdownモードで開き、事故を防ぐ。
   const hasRawHtml = useMemo(() => /<[a-z][^>]*>/i.test(post?.bodyMarkdown ?? ""), [post?.bodyMarkdown]);
 
+  // この編集中に本文が持っていた生HTMLの最大数。開いた時点だけでなく、編集中に
+  // 挿入した分も覚えておくことで、新規記事で「目次を挿入→WYSIWYGに戻して消える」
+  // ケースも検出できる。
+  const htmlPeakRef = useRef(PROTECTED_HTML.map((h) => countMatches(post?.bodyMarkdown ?? "", h.pattern)));
+  const [lostHtml, setLostHtml] = useState<string[] | null>(null);
+
+  function onBodyChange(markdown: string) {
+    const peak = htmlPeakRef.current;
+    PROTECTED_HTML.forEach((h, i) => {
+      peak[i] = Math.max(peak[i], countMatches(markdown, h.pattern));
+    });
+    setBody(markdown);
+  }
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    const lost = PROTECTED_HTML.filter((h, i) => countMatches(body, h.pattern) < htmlPeakRef.current[i]).map(
+      (h) => h.label,
+    );
+    if (lost.length === 0) {
+      setLostHtml(null);
+      return;
+    }
+    // 同じ警告を見たうえでもう一度押した場合は、意図した削除とみなして通す。
+    if (lostHtml && lostHtml.join() === lost.join()) return;
+    e.preventDefault();
+    setLostHtml(lost);
+  }
+
   const checks = useMemo(
     () => buildChecks({ title, slug, metaTitle, metaDescription, excerpt, coverImageUrl: cover, body }),
     [title, slug, metaTitle, metaDescription, excerpt, cover, body],
@@ -95,7 +137,7 @@ export default function BlogForm({ post }: { post?: BlogPost }) {
   }
 
   return (
-    <form action={formAction} className="grid lg:grid-cols-[1fr_360px] gap-6 items-start">
+    <form onSubmit={onSubmit} action={formAction} className="grid lg:grid-cols-[1fr_360px] gap-6 items-start">
       {post && <input type="hidden" name="id" value={post.id} />}
       <input type="hidden" name="title" value={title} />
       <input type="hidden" name="slug" value={slug} />
@@ -120,7 +162,8 @@ export default function BlogForm({ post }: { post?: BlogPost }) {
         <BlogEditor
           initialValue={post?.bodyMarkdown ?? ""}
           initialEditType={hasRawHtml ? "markdown" : "wysiwyg"}
-          onChange={setBody}
+          hideModeSwitch={hasRawHtml}
+          onChange={onBodyChange}
           onUploadImage={uploadImage}
           onReady={(handle) => (editorHandleRef.current = handle)}
         />
@@ -130,8 +173,8 @@ export default function BlogForm({ post }: { post?: BlogPost }) {
         </p>
         {hasRawHtml && (
           <p className="text-[11px] text-[var(--gold)] leading-relaxed">
-            この記事には目次・CTAボタンなどの生HTMLが含まれるため、Markdown表示で開いています。
-            <strong>WYSIWYGに切り替えて保存すると、それらのHTMLが本文から失われます。</strong>
+            この記事には目次・CTAボタンなどの生HTMLが含まれるため、Markdown表示に固定しています
+            （WYSIWYGに切り替えるとそれらが本文から失われるため、切り替えタブを隠しています）。
           </p>
         )}
         <TocInserter getEditor={() => editorHandleRef.current} />
@@ -287,6 +330,14 @@ export default function BlogForm({ post }: { post?: BlogPost }) {
               空欄なら初回公開時に現在時刻が入ります。過去の日付にすると記事を遡って投稿したように表示できます。
             </span>
           </label>
+
+          {lostHtml && (
+            <div className="rounded-xl bg-[var(--danger-tint)] px-3.5 py-2.5 text-xs text-[var(--danger)] leading-relaxed">
+              保存すると{lostHtml.join("・")}が本文から失われます。WYSIWYG表示に切り替えたことが原因の可能性があります。
+              元に戻すには、保存せずにページを再読み込みしてください。
+              意図した削除であれば、もう一度ボタンを押すとこのまま保存します。
+            </div>
+          )}
 
           {state.error && (
             <div className="rounded-xl bg-[var(--danger-tint)] px-3.5 py-2.5 text-xs text-[var(--danger)] leading-relaxed">

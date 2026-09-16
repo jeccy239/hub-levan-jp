@@ -13,7 +13,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     : null;
 
   return (
-    <div className="min-h-full flex bg-[var(--bg)] text-[var(--text)]">
+    <div className="min-h-full md:flex bg-[var(--bg)] text-[var(--text)]">
       <Sidebar
         user={user ?? session?.user ?? null}
         onSignOut={async () => {

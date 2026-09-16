@@ -634,3 +634,32 @@ model AppSetting {
   value     String   @db.Text
   updatedAt DateTime @updatedAt
 }
+
+// ---------------------------------------------------------------------------
+// WEBRIS 事業ダッシュボード（/webris/dashboard）。
+// WEBRIS の集計API（GA4・Search Console・Stripe を含む）は1回の取得が重いので、
+// 期間ごとの取得結果をここに保存し、一定時間は再取得しない。AI要約も同じ表に
+// 別キー（"ai:" 接頭辞）で保存する。payload は WEBRIS の応答そのまま。
+// ---------------------------------------------------------------------------
+model WebrisAnalyticsCache {
+  key       String   @id // 例: "data:2026-08-20_2026-09-16:2026-07-23_2026-08-19"
+  payload   Json
+  fetchedAt DateTime @default(now())
+
+  @@index([fetchedAt])
+}
+
+// 広告費。Meta/Google広告のAPI連携が無いため、手入力の実績値を保存する。
+// CAC・ROAS はここに入力された金額だけから計算し、未入力なら「—」を出す。
+model WebrisAdSpend {
+  id          String   @id @default(cuid())
+  channel     String // "instagram_paid" | "google_ads" | "other_paid"
+  periodStart DateTime @db.Date // 支出期間（JSTの日付）
+  periodEnd   DateTime @db.Date
+  amountJpy   Int
+  memo        String?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  @@index([periodStart, periodEnd])
+}

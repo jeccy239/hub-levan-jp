@@ -194,6 +194,11 @@ WEBRIS リポジトリの `docs/webris-blog-integration.md`（`GET/POST /api/lev
   変更しても反映されない。必要な変更は WEBRIS リポジトリの
   `docs/webris-blog-integration.md` に追記済み。
 
+## 事業ダッシュボード（実装済み）
+
+`/webris/dashboard`。WEBRIS 側の `GET /api/levanhub/analytics`（読み取り専用・同じ Bearer 認証）から
+集客・プロダクト利用・課金・SEO の集計を受け取って表示する。詳細は [webris-dashboard.md](./webris-dashboard.md)。
+
 ## 将来の拡張候補
 
 - プラン変更・強制解約などの書き込み操作（別エンドポイント、同じ認証方式）

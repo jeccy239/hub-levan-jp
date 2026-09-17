@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { AD_CHANNELS } from "@/lib/webrisAnalytics/adChannels";
+import { TopLoadingBar } from "./LoadingBar";
 import { addAdSpend, deleteAdSpend, generateSummary, refreshDashboard, type ActionState } from "./actions";
 
 export type RangeParams = { range: string; compare: string; from?: string; to?: string };
@@ -30,6 +31,7 @@ export function RefreshButton({ params }: { params: RangeParams }) {
   const [state, action, pending] = useActionState(refreshDashboard, null);
   return (
     <form action={action} className="flex items-center gap-2">
+      <TopLoadingBar show={pending} />
       <RangeFields params={params} />
       {state && !state.ok && <Message state={state} />}
       <button
@@ -47,6 +49,7 @@ export function GenerateSummaryButton({ params, hasSummary }: { params: RangePar
   const [state, action, pending] = useActionState(generateSummary, null);
   return (
     <form action={action} className="flex flex-wrap items-center justify-end gap-2">
+      <TopLoadingBar show={pending} />
       <RangeFields params={params} />
       <Message state={state} />
       <button
@@ -67,6 +70,7 @@ export function AdSpendForm({ defaultStart, defaultEnd }: { defaultStart: string
   const [state, action, pending] = useActionState(addAdSpend, null);
   return (
     <form action={action} className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end">
+      <TopLoadingBar show={pending} />
       <label className="col-span-2 md:col-span-1 text-[11px] text-[var(--text-dim)]">
         媒体
         <select name="channel" className={`${inputClass} mt-1`} defaultValue="instagram_paid">

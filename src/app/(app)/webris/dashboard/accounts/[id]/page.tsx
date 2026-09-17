@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { DashLink } from "../../LoadingBar";
 import { notFound } from "next/navigation";
 import { fmtDate, fmtDateTime, fmtInt, fmtJpy } from "@/lib/webrisAnalytics/format";
 import { sectionData } from "@/lib/webrisAnalytics/metrics";
@@ -41,9 +41,9 @@ export default async function WebrisAccountInsightPage({ params }: { params: Pro
   if (!product) {
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-4">
-        <Link href="/webris/dashboard?tab=users" className="text-xs text-[var(--accent)] hover:underline">
+        <DashLink href="/webris/dashboard?tab=users" className="text-xs text-[var(--accent)] hover:underline">
           ← ユーザー一覧へ
-        </Link>
+        </DashLink>
         {data.payload ? (
           <SectionNotice section={data.payload.product} name="WEBRIS DB" />
         ) : (
@@ -67,9 +67,9 @@ export default async function WebrisAccountInsightPage({ params }: { params: Pro
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-5">
-      <Link href="/webris/dashboard?tab=users" className="text-xs text-[var(--accent)] hover:underline">
+      <DashLink href="/webris/dashboard?tab=users" className="text-xs text-[var(--accent)] hover:underline">
         ← ユーザー一覧へ
-      </Link>
+      </DashLink>
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-[24px] font-semibold tracking-tight text-[var(--text)]">アカウントの利用状況</h1>
@@ -134,9 +134,9 @@ export default async function WebrisAccountInsightPage({ params }: { params: Pro
 
       <p className="text-[11px] text-[var(--text-dim)]">
         氏名・連絡先・契約操作が必要な場合は{" "}
-        <Link href={`/webris/${a.id}`} className="text-[var(--accent)] hover:underline">
+        <DashLink href={`/webris/${a.id}`} className="text-[var(--accent)] hover:underline">
           顧客管理の詳細画面
-        </Link>{" "}
+        </DashLink>{" "}
         を開いてください（個人情報を含みます）。
       </p>
     </div>

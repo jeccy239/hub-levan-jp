@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { DashLink } from "./LoadingBar";
 import { listAdSpend, summarizeAdSpend } from "@/lib/webrisAnalytics/adsService";
 import { getAiSummary } from "@/lib/webrisAnalytics/aiSummary";
 import { fmtDateTime } from "@/lib/webrisAnalytics/format";
@@ -126,7 +126,7 @@ export default async function WebrisDashboardPage({ searchParams }: { searchPara
       <div className={`${cardClass} px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-3`}>
         <nav className="flex flex-wrap gap-1" aria-label="期間">
           {RANGE_PRESETS.filter((p) => p.value !== "custom").map((p) => (
-            <Link
+            <DashLink
               key={p.value}
               href={href({ range: p.value, from: undefined, to: undefined, page: undefined })}
               className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
@@ -134,7 +134,7 @@ export default async function WebrisDashboardPage({ searchParams }: { searchPara
               }`}
             >
               {p.label}
-            </Link>
+            </DashLink>
           ))}
         </nav>
         <form action="/webris/dashboard" className="flex flex-wrap items-center gap-1.5 text-xs">
@@ -167,7 +167,7 @@ export default async function WebrisDashboardPage({ searchParams }: { searchPara
         </form>
         <nav className="flex gap-1 md:ml-auto" aria-label="比較">
           {COMPARE_MODES.map((m) => (
-            <Link
+            <DashLink
               key={m.value}
               href={href({ compare: m.value })}
               className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
@@ -177,7 +177,7 @@ export default async function WebrisDashboardPage({ searchParams }: { searchPara
               }`}
             >
               {m.label}
-            </Link>
+            </DashLink>
           ))}
         </nav>
         <p className="basis-full text-[11px] text-[var(--text-dim)] tabular-nums">
@@ -213,9 +213,9 @@ export default async function WebrisDashboardPage({ searchParams }: { searchPara
               </>
             );
             return a.tab && a.tab !== tab ? (
-              <Link key={i} href={href({ tab: a.tab, page: undefined })} className={`block rounded-xl border px-4 py-2.5 hover:shadow-sm ${tone}`}>
+              <DashLink key={i} href={href({ tab: a.tab, page: undefined })} className={`block rounded-xl border px-4 py-2.5 hover:shadow-sm ${tone}`}>
                 {body}
-              </Link>
+              </DashLink>
             ) : (
               <div key={i} className={`rounded-xl border px-4 py-2.5 ${tone}`}>
                 {body}
@@ -228,7 +228,7 @@ export default async function WebrisDashboardPage({ searchParams }: { searchPara
       {/* タブ */}
       <nav className="flex gap-1 overflow-x-auto border-b border-[var(--line)] -mx-4 px-4 sm:mx-0 sm:px-0" aria-label="ダッシュボードの表示切り替え">
         {TABS.map((t) => (
-          <Link
+          <DashLink
             key={t.key}
             href={href({ tab: t.key, page: undefined, rank: undefined, kw: undefined, plan: undefined })}
             className={`px-3.5 py-2 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
@@ -236,7 +236,7 @@ export default async function WebrisDashboardPage({ searchParams }: { searchPara
             }`}
           >
             {t.label}
-          </Link>
+          </DashLink>
         ))}
       </nav>
 

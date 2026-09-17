@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { DashLink } from "./LoadingBar";
 import type { ReactNode } from "react";
 import type { Kpi, KpiFormat } from "@/lib/webrisAnalytics/metrics";
 import { change } from "@/lib/webrisAnalytics/metrics";
@@ -185,9 +185,9 @@ export function BarList({
         <li key={i.label} className="text-[13px]">
           <div className="flex items-baseline justify-between gap-3">
             {i.href ? (
-              <Link href={i.href} className="truncate text-[var(--text)] hover:text-[var(--accent)]">
+              <DashLink href={i.href} className="truncate text-[var(--text)] hover:text-[var(--accent)]">
                 {i.label}
-              </Link>
+              </DashLink>
             ) : (
               <span className="truncate text-[var(--text)]">{i.label}</span>
             )}
@@ -269,17 +269,17 @@ export function Pager({ page, pages, hrefFor }: { page: number; pages: number; h
   return (
     <nav className="flex items-center justify-end gap-2 pt-3 text-xs">
       {page > 1 ? (
-        <Link href={hrefFor(page - 1)} className="rounded-full px-3 py-1 bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--line)]">
+        <DashLink href={hrefFor(page - 1)} className="rounded-full px-3 py-1 bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--line)]">
           前へ
-        </Link>
+        </DashLink>
       ) : null}
       <span className="tabular-nums text-[var(--text-dim)]">
         {page} / {pages}
       </span>
       {page < pages ? (
-        <Link href={hrefFor(page + 1)} className="rounded-full px-3 py-1 bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--line)]">
+        <DashLink href={hrefFor(page + 1)} className="rounded-full px-3 py-1 bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--line)]">
           次へ
-        </Link>
+        </DashLink>
       ) : null}
     </nav>
   );

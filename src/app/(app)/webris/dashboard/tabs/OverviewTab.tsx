@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { DashLink } from "../LoadingBar";
 import type { AiSummary } from "@/lib/webrisAnalytics/aiSummary";
 import { fmtDateTime, fmtInt, fmtJpy, fmtPct } from "@/lib/webrisAnalytics/format";
 import {
@@ -141,9 +141,9 @@ export default function OverviewTab({
                   </span>
                   <div className="min-w-0">
                     {imp.tab ? (
-                      <Link href={href({ tab: imp.tab })} className="text-[13px] font-medium text-[var(--text)] hover:text-[var(--accent)]">
+                      <DashLink href={href({ tab: imp.tab })} className="text-[13px] font-medium text-[var(--text)] hover:text-[var(--accent)]">
                         {imp.title}
-                      </Link>
+                      </DashLink>
                     ) : (
                       <p className="text-[13px] font-medium text-[var(--text)]">{imp.title}</p>
                     )}
@@ -255,9 +255,9 @@ export default function OverviewTab({
           title="流入元（セッション）"
           source="GA4"
           action={
-            <Link href={href({ tab: "acquisition" })} className="text-xs text-[var(--accent)] hover:underline">
+            <DashLink href={href({ tab: "acquisition" })} className="text-xs text-[var(--accent)] hover:underline">
               詳細
-            </Link>
+            </DashLink>
           }
         >
           {channels ? (
@@ -279,9 +279,9 @@ export default function OverviewTab({
         <Panel
           title="ファネルの要点"
           action={
-            <Link href={href({ tab: "funnel" })} className="text-xs text-[var(--accent)] hover:underline">
+            <DashLink href={href({ tab: "funnel" })} className="text-xs text-[var(--accent)] hover:underline">
               詳細
-            </Link>
+            </DashLink>
           }
         >
           <ul className="space-y-1.5 text-[13px]">

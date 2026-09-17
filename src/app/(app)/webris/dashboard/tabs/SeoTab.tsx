@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { DashLink } from "../LoadingBar";
 import { DASH, fmtDate, fmtInt, fmtPct, fmtPosition } from "@/lib/webrisAnalytics/format";
 import { buildChannels, buildSeo, RANK_TREND_LABEL, sectionData, type RankTrend } from "@/lib/webrisAnalytics/metrics";
 import type { Metric } from "@/lib/webrisAnalytics/types";
@@ -109,7 +109,7 @@ export default function SeoTab({ payload, ads, range, href, sp }: TabContext) {
           >
             <nav className="flex flex-wrap gap-1 mb-3" aria-label="順位変化で絞り込み">
               {TREND_FILTERS.map((t) => (
-                <Link
+                <DashLink
                   key={t.key}
                   href={href({ kw: t.key === "all" ? undefined : t.key, page: undefined })}
                   className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -118,7 +118,7 @@ export default function SeoTab({ payload, ads, range, href, sp }: TabContext) {
                 >
                   {t.label}
                   <span className="ml-1 tabular-nums opacity-70">{t.key === "all" ? seo.keywordCount : seo.counts[t.key]}</span>
-                </Link>
+                </DashLink>
               ))}
             </nav>
             <div className="overflow-x-auto -mx-5">

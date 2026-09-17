@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { DashLink } from "../LoadingBar";
 import { DASH, fmtDate, fmtInt, fmtJpy, shortId } from "@/lib/webrisAnalytics/format";
 import { sectionData } from "@/lib/webrisAnalytics/metrics";
 import { EmptyRow, Pager, Panel, SectionNotice, numClass, tdClass, thClass } from "../ui";
@@ -43,7 +43,7 @@ export default function UsersTab({ payload, range, href, sp }: TabContext) {
     >
       <nav className="flex flex-wrap gap-1 mb-3" aria-label="絞り込み">
         {FILTERS.map((f) => (
-          <Link
+          <DashLink
             key={f.key}
             href={href({ plan: f.key || undefined, page: undefined })}
             className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -51,7 +51,7 @@ export default function UsersTab({ payload, range, href, sp }: TabContext) {
             }`}
           >
             {f.label}
-          </Link>
+          </DashLink>
         ))}
         <span className="ml-auto self-center text-xs text-[var(--text-dim)] tabular-nums">{fmtInt(rows.length)}件</span>
       </nav>
@@ -78,9 +78,9 @@ export default function UsersTab({ payload, range, href, sp }: TabContext) {
             {visible.map((a) => (
               <tr key={a.id} className="hover:bg-[var(--surface-2)]/50">
                 <td className={`${tdClass} font-mono text-[12px]`}>
-                  <Link href={`/webris/dashboard/accounts/${a.id}`} className="hover:text-[var(--accent)]">
+                  <DashLink href={`/webris/dashboard/accounts/${a.id}`} className="hover:text-[var(--accent)]">
                     {shortId(a.id)}
-                  </Link>
+                  </DashLink>
                 </td>
                 <td className={`${tdClass} tabular-nums`}>{fmtDate(a.createdAt)}</td>
                 <td className={`${tdClass} tabular-nums text-[var(--text-dim)]`}>{fmtDate(a.lastActivityAt)}</td>
@@ -109,9 +109,9 @@ export default function UsersTab({ payload, range, href, sp }: TabContext) {
                 </td>
                 <td className={`${tdClass} ${numClass}`}>{fmtInt(a.members)}</td>
                 <td className={`${tdClass} text-right`}>
-                  <Link href={`/webris/dashboard/accounts/${a.id}`} className="text-xs text-[var(--accent)] hover:underline">
+                  <DashLink href={`/webris/dashboard/accounts/${a.id}`} className="text-xs text-[var(--accent)] hover:underline">
                     詳細
-                  </Link>
+                  </DashLink>
                 </td>
               </tr>
             ))}

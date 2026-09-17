@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { DashLink } from "../LoadingBar";
 import { DASH, fmtDuration, fmtInt, fmtPct } from "@/lib/webrisAnalytics/format";
 import { buildNotFound, buildPages, PAGE_RANKINGS, rankPages, sectionData, type PageRanking } from "@/lib/webrisAnalytics/metrics";
 import { Delta, EmptyRow, Pager, Panel, SectionNotice, SmallSampleNote, numClass, tdClass, thClass } from "../ui";
@@ -32,7 +32,7 @@ export default function PagesTab({ payload, href, sp }: TabContext) {
       >
         <nav className="flex flex-wrap gap-1 mb-3" aria-label="ランキング">
           {PAGE_RANKINGS.map((r) => (
-            <Link
+            <DashLink
               key={r.key}
               href={href({ rank: r.key, page: undefined })}
               className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -40,7 +40,7 @@ export default function PagesTab({ payload, href, sp }: TabContext) {
               }`}
             >
               {r.label}
-            </Link>
+            </DashLink>
           ))}
         </nav>
         {ranked.unavailable ? (

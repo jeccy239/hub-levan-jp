@@ -38,6 +38,18 @@ LEVAN HUB                                          WEBRIS (webris.levan.jp)
 | AI 要約 | `src/lib/webrisAnalytics/aiSummary.ts` |
 | 画面 | `src/app/(app)/webris/dashboard/`（タブごとに `tabs/*.tsx`） |
 | WEBRIS 側の集計 | WEBRIS リポジトリ `src/lib/levanhub/business-analytics.ts`, `src/app/api/levanhub/analytics/route.ts` |
+| 無料SEO診断の履歴 | HUB `src/lib/webrisAnalytics/publicScans.ts`, `tabs/ScansTab.tsx` / WEBRIS `src/app/api/public-scan/route.ts`（記録）, `src/app/api/levanhub/public-scans/route.ts` |
+
+### SEO診断タブ（無料SEO診断の履歴）
+
+webris.levan.jp の無料SEO診断（ログイン不要、`POST /api/public-scan`）で入力されたURLを新しい順に表示する。
+
+- WEBRIS は診断のたびに `public_scan_logs`（`PublicScanLog`）へ URL・スコア・成否を保存する。IPは保存せず、
+  `PV_EXCLUDE_IPS` に一致したものは `internal`（社内）として区別し、集計から除く。
+- HUB は `GET /api/levanhub/public-scans?start&end&limit` を**キャッシュせず**に呼ぶ（`src/lib/webrisAnalytics/publicScans.ts`）。
+  タブを開いている間は30秒ごとに再取得する（`AutoRefresh.tsx`、ブラウザのタブが裏にある間は停止）。
+- 「7日間」などの期間は他のタブと同じく昨日までだが、このタブだけは今日の分まで含める。
+- 診断URLのドメインを登録しているアカウントがあれば「登録済み」としてアカウント詳細へリンクする。
 
 イベントを追加するときは `metrics.ts` の `EVENT_REGISTRY` に1行足す。流入元の分類ルールは `classifyChannel`。
 

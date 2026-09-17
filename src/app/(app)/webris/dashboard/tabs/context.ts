@@ -13,6 +13,7 @@ export type DashboardSearchParams = {
   kw?: string;
   page?: string;
   plan?: string;
+  scan?: string;
 };
 
 export type TabContext = {

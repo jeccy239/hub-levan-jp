@@ -12,6 +12,7 @@ import EventsTab from "./tabs/EventsTab";
 import FunnelTab from "./tabs/FunnelTab";
 import OverviewTab from "./tabs/OverviewTab";
 import PagesTab from "./tabs/PagesTab";
+import ScansTab from "./tabs/ScansTab";
 import SeoTab from "./tabs/SeoTab";
 import UsersTab from "./tabs/UsersTab";
 import type { DashboardSearchParams } from "./tabs/context";
@@ -28,6 +29,7 @@ const TABS = [
   { key: "seo", label: "SEO" },
   { key: "events", label: "イベント" },
   { key: "users", label: "ユーザー" },
+  { key: "scans", label: "SEO診断" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
@@ -230,7 +232,7 @@ export default async function WebrisDashboardPage({ searchParams }: { searchPara
         {TABS.map((t) => (
           <DashLink
             key={t.key}
-            href={href({ tab: t.key, page: undefined, rank: undefined, kw: undefined, plan: undefined })}
+            href={href({ tab: t.key, page: undefined, rank: undefined, kw: undefined, plan: undefined, scan: undefined })}
             className={`px-3.5 py-2 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
               tab === t.key ? "border-[var(--accent)] text-[var(--text)]" : "border-transparent text-[var(--text-dim)] hover:text-[var(--text)]"
             }`}
@@ -247,6 +249,7 @@ export default async function WebrisDashboardPage({ searchParams }: { searchPara
       {tab === "seo" && <SeoTab {...ctx} />}
       {tab === "events" && <EventsTab {...ctx} />}
       {tab === "users" && <UsersTab {...ctx} />}
+      {tab === "scans" && <ScansTab {...ctx} />}
     </div>
   );
 }

@@ -36,6 +36,8 @@ export type AccountRow = {
   subscriptionStatus: string | null;
   isPaid: boolean;
   sites: number;
+  /** 登録済みサイトのURL（登録日の古い順）。WEBRIS側が未対応の応答・キャッシュでは無い */
+  siteUrls?: string[];
   firstUrlAt: string | null;
   audits: number;
   lastAuditAt: string | null;

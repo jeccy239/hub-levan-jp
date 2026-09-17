@@ -111,6 +111,19 @@ export default async function WebrisAccountInsightPage({ params }: { params: Pro
             {fmtDateTime(a.lastActivityAt)}
           </Row>
           <Row label="URL登録">{a.sites > 0 ? `${fmtInt(a.sites)}サイト（初回 ${fmtDateTime(a.firstUrlAt)}）` : "未登録"}</Row>
+          {!!a.siteUrls?.length && (
+            <Row label="診断URL">
+              <ul className="space-y-0.5">
+                {a.siteUrls.map((url, i) => (
+                  <li key={i} className="break-all">
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline">
+                      {url}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </Row>
+          )}
           <Row label="サイト分析">{a.audits > 0 ? `${fmtInt(a.audits)}回（最新 ${fmtDateTime(a.lastAuditAt)}）` : "未実行"}</Row>
           <Row label="AI利用">{a.aiRuns > 0 ? `${fmtInt(a.aiRuns)}回（最新 ${fmtDateTime(a.lastAiAt)}）` : "未利用"}</Row>
           <Row label="レポート作成">{fmtInt(a.reports)}件</Row>

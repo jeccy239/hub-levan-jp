@@ -13,6 +13,31 @@ const FILTERS = [
   { key: "stalled", label: "URL未登録" },
 ] as const;
 
+function SiteUrls({ urls, sites }: { urls: string[] | undefined; sites: number }) {
+  if (sites === 0) return <span className="text-[var(--text-dim)]">{DASH}</span>;
+  // WEBRIS側が siteUrls 未対応の間は登録有無だけ示す
+  if (!urls?.length) return <Check on />;
+  const [first, ...rest] = urls;
+  return (
+    <span className="flex items-center gap-1.5 min-w-0">
+      <a
+        href={first}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={first}
+        className="truncate text-[12px] text-[var(--accent)] hover:underline"
+      >
+        {first.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+      </a>
+      {rest.length > 0 && (
+        <span title={rest.join("\n")} className="shrink-0 text-[11px] text-[var(--text-dim)] tabular-nums">
+          +{rest.length}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function Check({ on }: { on: boolean }) {
   return on ? <span className="text-[#1b7f3b]">●</span> : <span className="text-[var(--line)]">○</span>;
 }
@@ -56,14 +81,14 @@ export default function UsersTab({ payload, range, href, sp }: TabContext) {
         <span className="ml-auto self-center text-xs text-[var(--text-dim)] tabular-nums">{fmtInt(rows.length)}件</span>
       </nav>
       <div className="overflow-x-auto -mx-5">
-        <table className="w-full min-w-[1040px]">
+        <table className="w-full min-w-[1180px]">
           <thead className="border-b border-[var(--line)]">
             <tr>
               <th className={thClass}>ID</th>
               <th className={thClass}>登録日</th>
               <th className={thClass}>最終利用</th>
               <th className={thClass}>プラン</th>
-              <th className={`${thClass} text-center`}>URL登録</th>
+              <th className={thClass}>診断URL</th>
               <th className={`${thClass} text-right`}>サイト</th>
               <th className={`${thClass} text-right`}>診断</th>
               <th className={`${thClass} text-right`}>AI利用</th>
@@ -94,8 +119,8 @@ export default function UsersTab({ payload, range, href, sp }: TabContext) {
                   </span>
                   {a.isPaid && <span className="ml-1.5 text-[11px] tabular-nums text-[var(--text-dim)]">{fmtJpy(a.monthlyPriceJpy)}</span>}
                 </td>
-                <td className={`${tdClass} text-center`}>
-                  <Check on={a.sites > 0} />
+                <td className={`${tdClass} max-w-[240px]`}>
+                  <SiteUrls urls={a.siteUrls} sites={a.sites} />
                 </td>
                 <td className={`${tdClass} ${numClass}`}>{fmtInt(a.sites)}</td>
                 <td className={`${tdClass} ${numClass}`}>{fmtInt(a.audits)}</td>

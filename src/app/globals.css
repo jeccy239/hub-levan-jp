@@ -130,24 +130,13 @@ textarea:focus {
  * WEBRISダッシュボードの読み込みバー（画面上部）。色はWEBRISのイメージカラー。
  * 実体は src/app/(app)/webris/dashboard/LoadingBar.tsx。
  * ---------------------------------------------------------------------- */
-@keyframes webris-loading-bar {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(350%);
-  }
-}
-
 .webris-loading-bar {
-  background: linear-gradient(90deg, rgba(61, 126, 255, 0) 0%, #3d7eff 45%, #8fb4ff 75%, rgba(61, 126, 255, 0) 100%);
-  animation: webris-loading-bar 1.1s ease-in-out infinite;
+  background: linear-gradient(90deg, #3d7eff 0%, #6f9dff 100%);
+  box-shadow: 0 0 8px rgba(61, 126, 255, 0.6);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .webris-loading-bar {
-    width: 100%;
-    animation: none;
-    opacity: 0.7;
+    transition: none !important;
   }
 }

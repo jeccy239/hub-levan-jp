@@ -28,6 +28,11 @@ const NAV_ITEMS: NavItem[] = [
       { href: "/webris/claude-usage", label: "Claude Console API" },
     ],
   },
+  {
+    href: "/simulator-studio",
+    label: "シミュレータースタジオ",
+    children: [{ href: "/simulator-studio", label: "契約店舗一覧" }],
+  },
 ];
 
 /** 現在のパスに一致する子のうち、最も限定的なもの（hrefが最長）を選ぶ。

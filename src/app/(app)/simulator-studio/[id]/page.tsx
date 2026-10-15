@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
   fetchSimulatorTenants,
+  isSimulatorSecret,
+  SIMULATOR_SECRET_STYLE,
   SIMULATOR_STATUS_LABEL,
   SIMULATOR_STATUS_STYLE,
   simulatorChargedMonthlyJpy,
@@ -73,9 +75,16 @@ export default async function SimulatorTenantDetailPage({ params }: { params: Pr
             <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${SIMULATOR_STATUS_STYLE[simulatorDisplayStatus(t)] ?? ""}`}>
               {SIMULATOR_STATUS_LABEL[simulatorDisplayStatus(t)] ?? simulatorDisplayStatus(t)}
             </span>
-            <span className="text-[var(--text-dim)]">
-              {t.secretPlan ? `${t.planName}・特別付与（無料）` : `${t.planName}・${formatYen(simulatorChargedMonthlyJpy(t))}/月`}
-            </span>
+            {isSimulatorSecret(t) ? (
+              <>
+                <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${SIMULATOR_SECRET_STYLE}`}>シークレット</span>
+                <span className="text-[var(--text-dim)]">特別付与・{formatYen(0)}/月</span>
+              </>
+            ) : (
+              <span className="text-[var(--text-dim)]">
+                {t.planName}・{formatYen(simulatorChargedMonthlyJpy(t))}/月
+              </span>
+            )}
             {simulatorTrialLabel(t) && <span className="text-[var(--gold)] font-medium">{simulatorTrialLabel(t)}</span>}
           </div>
         </div>

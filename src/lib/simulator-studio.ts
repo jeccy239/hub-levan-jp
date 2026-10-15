@@ -57,9 +57,17 @@ export function simulatorDisplayStatus(t: SimulatorTenant): string {
   return t.inTrial ? "TRIAL" : t.status;
 }
 
-/** 実際に請求している月額（お試し中はまだ決済していないので 0 円） */
+/** シークレットプラン（特別付与の無料プラン）か */
+export function isSimulatorSecret(t: SimulatorTenant): boolean {
+  return t.secretPlan || t.planCode === "SECRET";
+}
+
+/** シークレットプランのバッジ（パープル） */
+export const SIMULATOR_SECRET_STYLE = "bg-[var(--purple-tint)] text-[var(--purple)]";
+
+/** 実際に請求している月額（お試し中はまだ決済していない・シークレットは無料なので 0 円） */
 export function simulatorChargedMonthlyJpy(t: SimulatorTenant): number {
-  return t.inTrial ? 0 : t.monthlyPriceJpy;
+  return t.inTrial || isSimulatorSecret(t) ? 0 : t.monthlyPriceJpy;
 }
 
 /** お試しの残り日数（お試し中でなければ null） */

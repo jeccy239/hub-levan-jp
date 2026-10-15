@@ -13,6 +13,8 @@ export type SimulatorTenant = {
   planName: string;
   monthlyPriceJpy: number;
   status: string; // TRIAL | ACTIVE | SUSPENDED
+  inTrial?: boolean; // お試し中（まだ請求していない。Stripe のお試し期間中は status が ACTIVE のことがある）
+  trialEndsAt?: string | null; // ISO — お試しの終了日時
   published: boolean;
   onboardingDone: boolean;
   contactEmail: string | null;
@@ -45,6 +47,28 @@ export const SIMULATOR_STATUS_STYLE: Record<string, string> = {
   TRIAL: "bg-[var(--gold-tint)] text-[var(--gold)]",
   SUSPENDED: "bg-[var(--surface-2)] text-[var(--text-dim)]",
 };
+
+/** 表示用のステータス（Stripe のお試し期間中も「トライアル」として扱う） */
+export function simulatorDisplayStatus(t: SimulatorTenant): string {
+  return t.inTrial ? "TRIAL" : t.status;
+}
+
+/** 実際に請求している月額（お試し中はまだ決済していないので 0 円） */
+export function simulatorChargedMonthlyJpy(t: SimulatorTenant): number {
+  return t.inTrial ? 0 : t.monthlyPriceJpy;
+}
+
+/** お試しの残り日数（お試し中でなければ null） */
+export function simulatorTrialDaysLeft(t: SimulatorTenant, now = new Date()): number | null {
+  if (!t.inTrial || !t.trialEndsAt) return null;
+  return Math.max(0, Math.ceil((new Date(t.trialEndsAt).getTime() - now.getTime()) / 864e5));
+}
+
+export function simulatorTrialLabel(t: SimulatorTenant): string | null {
+  const days = simulatorTrialDaysLeft(t);
+  if (days === null) return null;
+  return days > 0 ? `トライアル残り${days}日` : "トライアル期限切れ";
+}
 
 export async function fetchSimulatorTenants(): Promise<SimulatorTenant[]> {
   const baseUrl = process.env.SIMULATOR_STUDIO_API_URL;

@@ -3,6 +3,9 @@ import {
   fetchSimulatorTenants,
   SIMULATOR_STATUS_LABEL,
   SIMULATOR_STATUS_STYLE,
+  simulatorChargedMonthlyJpy,
+  simulatorDisplayStatus,
+  simulatorTrialLabel,
   SimulatorStudioApiError,
   SimulatorStudioNotConfiguredError,
 } from "@/lib/simulator-studio";
@@ -50,7 +53,7 @@ export default async function SimulatorStudioTenantsPage({
   }
 
   // 売上はトライアル・停止中を除いた「契約中」のみで集計する。
-  const active = tenants.filter((t) => t.status === "ACTIVE");
+  const active = tenants.filter((t) => simulatorDisplayStatus(t) === "ACTIVE");
   const mrr = active.reduce((sum, t) => sum + t.monthlyPriceJpy, 0);
   const byPlan = PLAN_ORDER.map((code) => {
     const list = active.filter((t) => t.planCode === code);
@@ -59,7 +62,7 @@ export default async function SimulatorStudioTenantsPage({
 
   const needle = search.toLowerCase();
   const rows = tenants.filter((t) => {
-    if (statusFilter && t.status !== statusFilter) return false;
+    if (statusFilter && simulatorDisplayStatus(t) !== statusFilter) return false;
     if (needle) {
       const haystack = [t.name, t.slug, t.ownerName ?? "", t.ownerEmail ?? "", t.contactEmail ?? ""].join(" ").toLowerCase();
       if (!haystack.includes(needle)) return false;
@@ -181,10 +184,13 @@ export default async function SimulatorStudioTenantsPage({
                       <div className="text-[10px] truncate">{t.ownerEmail ?? ""}</div>
                     </td>
                     <td className="px-3 py-2 text-[var(--text)]">{t.planName}</td>
-                    <td className="px-3 py-2 tabular-nums text-[var(--text)]">{formatYen(t.monthlyPriceJpy)}</td>
+                    <td className="px-3 py-2 tabular-nums text-[var(--text)] whitespace-nowrap">
+                      {formatYen(simulatorChargedMonthlyJpy(t))}
+                      {simulatorTrialLabel(t) && <div className="text-[10px] text-[var(--gold)]">{simulatorTrialLabel(t)}</div>}
+                    </td>
                     <td className="px-3 py-2 whitespace-nowrap">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${SIMULATOR_STATUS_STYLE[t.status] ?? ""}`}>
-                        {SIMULATOR_STATUS_LABEL[t.status] ?? t.status}
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${SIMULATOR_STATUS_STYLE[simulatorDisplayStatus(t)] ?? ""}`}>
+                        {SIMULATOR_STATUS_LABEL[simulatorDisplayStatus(t)] ?? simulatorDisplayStatus(t)}
                       </span>
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-[var(--text-dim)]">{t.published ? "公開中" : "非公開"}</td>

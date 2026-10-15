@@ -4,6 +4,9 @@ import {
   fetchSimulatorTenants,
   SIMULATOR_STATUS_LABEL,
   SIMULATOR_STATUS_STYLE,
+  simulatorChargedMonthlyJpy,
+  simulatorDisplayStatus,
+  simulatorTrialLabel,
   SimulatorStudioApiError,
   SimulatorStudioNotConfiguredError,
 } from "@/lib/simulator-studio";
@@ -66,12 +69,13 @@ export default async function SimulatorTenantDetailPage({ params }: { params: Pr
         <div className="min-w-0">
           <h1 className="text-[26px] font-semibold tracking-tight text-[var(--text)]">{t.name}</h1>
           <div className="flex flex-wrap items-center gap-2 mt-1 text-sm">
-            <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${SIMULATOR_STATUS_STYLE[t.status] ?? ""}`}>
-              {SIMULATOR_STATUS_LABEL[t.status] ?? t.status}
+            <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${SIMULATOR_STATUS_STYLE[simulatorDisplayStatus(t)] ?? ""}`}>
+              {SIMULATOR_STATUS_LABEL[simulatorDisplayStatus(t)] ?? simulatorDisplayStatus(t)}
             </span>
             <span className="text-[var(--text-dim)]">
-              {t.planName}・{formatYen(t.monthlyPriceJpy)}/月
+              {t.planName}・{formatYen(simulatorChargedMonthlyJpy(t))}/月
             </span>
+            {simulatorTrialLabel(t) && <span className="text-[var(--gold)] font-medium">{simulatorTrialLabel(t)}</span>}
           </div>
         </div>
       </div>

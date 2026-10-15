@@ -1,6 +1,8 @@
 import Link from "next/link";
 import {
   fetchSimulatorTenants,
+  isSimulatorSecret,
+  SIMULATOR_SECRET_STYLE,
   SIMULATOR_STATUS_LABEL,
   SIMULATOR_STATUS_STYLE,
   simulatorChargedMonthlyJpy,
@@ -54,7 +56,7 @@ export default async function SimulatorStudioTenantsPage({
 
   // 売上はトライアル・停止中を除いた「契約中」のみで集計する。
   const active = tenants.filter((t) => simulatorDisplayStatus(t) === "ACTIVE");
-  const mrr = active.reduce((sum, t) => sum + t.monthlyPriceJpy, 0);
+  const mrr = active.reduce((sum, t) => sum + simulatorChargedMonthlyJpy(t), 0);
   const byPlan = PLAN_ORDER.map((code) => {
     const list = active.filter((t) => t.planCode === code);
     return { code, count: list.length, revenue: list.reduce((s, t) => s + t.monthlyPriceJpy, 0) };
@@ -183,7 +185,13 @@ export default async function SimulatorStudioTenantsPage({
                       <div className="text-[var(--text)]">{t.ownerName ?? "—"}</div>
                       <div className="text-[10px] truncate">{t.ownerEmail ?? ""}</div>
                     </td>
-                    <td className="px-3 py-2 text-[var(--text)]">{t.planName}</td>
+                    <td className="px-3 py-2 text-[var(--text)] whitespace-nowrap">
+                      {isSimulatorSecret(t) ? (
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${SIMULATOR_SECRET_STYLE}`}>シークレット</span>
+                      ) : (
+                        t.planName
+                      )}
+                    </td>
                     <td className="px-3 py-2 tabular-nums text-[var(--text)] whitespace-nowrap">
                       {formatYen(simulatorChargedMonthlyJpy(t))}
                       {simulatorTrialLabel(t) && <div className="text-[10px] text-[var(--gold)]">{simulatorTrialLabel(t)}</div>}

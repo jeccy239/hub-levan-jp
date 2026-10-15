@@ -13,6 +13,7 @@ import {
 import { formatYen } from "@/lib/labels";
 import Avatar from "@/components/Avatar";
 import { faviconUrl } from "@/lib/avatar";
+import { SecretPlanForm } from "./SecretPlanForm";
 
 export const dynamic = "force-dynamic";
 
@@ -73,7 +74,7 @@ export default async function SimulatorTenantDetailPage({ params }: { params: Pr
               {SIMULATOR_STATUS_LABEL[simulatorDisplayStatus(t)] ?? simulatorDisplayStatus(t)}
             </span>
             <span className="text-[var(--text-dim)]">
-              {t.planName}・{formatYen(simulatorChargedMonthlyJpy(t))}/月
+              {t.secretPlan ? `${t.planName}・特別付与（無料）` : `${t.planName}・${formatYen(simulatorChargedMonthlyJpy(t))}/月`}
             </span>
             {simulatorTrialLabel(t) && <span className="text-[var(--gold)] font-medium">{simulatorTrialLabel(t)}</span>}
           </div>
@@ -101,6 +102,14 @@ export default async function SimulatorTenantDetailPage({ params }: { params: Pr
         <Row label="初期設定">{t.onboardingDone ? "完了" : "未完了"}</Row>
         <Row label="契約日">{new Date(t.createdAt).toLocaleDateString("ja-JP")}</Row>
         <Row label="メンバー数">{t.memberCount}人</Row>
+      </section>
+
+      <section className={card}>
+        <h2 className="font-semibold text-[var(--text)] mb-1">シークレットプラン</h2>
+        <p className="text-sm text-[var(--text-dim)] mb-3">
+          自社・関係先・デモ用の店舗に、プレミアムと同じ機能を無料・無期限で付与します。解除すると解約済みと同じ扱いになり、店舗が自分で有料プランを申し込めるようになります。
+        </p>
+        <SecretPlanForm id={t.id} name={t.name} enabled={t.secretPlan} hasSubscription={t.hasSubscription} />
       </section>
 
       <section className={card}>

@@ -2,17 +2,19 @@
 // simulatorstudio.jp). Same shape as src/lib/webris.ts: LEVAN HUB never
 // touches SimulatorStudio's database, it calls an authenticated API.
 // The endpoints live in the SimulatorStudio repo under src/app/api/levanhub/
-// (tenants: read-only list; demos: theme demo pages — list/create/delete/login).
+// (tenants: list + secret-plan grant; demos: theme demo pages — list/create/delete/login).
 
 export type SimulatorTenant = {
   id: string;
   slug: string;
   name: string;
   publicUrl: string; // https://{slug}.simulatorstudio.jp
-  planCode: string; // STARTER | PROFESSIONAL | ENTERPRISE
+  planCode: string; // STARTER | PROFESSIONAL | ENTERPRISE | SECRET
   planName: string;
   monthlyPriceJpy: number;
-  status: string; // TRIAL | ACTIVE | SUSPENDED
+  secretPlan: boolean; // シークレットプラン（特別付与の無料プラン）
+  hasSubscription: boolean; // Stripe で有料プランを契約中
+  status: string; // TRIAL | ACTIVE | CANCELED | SUSPENDED
   inTrial?: boolean; // お試し中（まだ請求していない。Stripe のお試し期間中は status が ACTIVE のことがある）
   trialEndsAt?: string | null; // ISO — お試しの終了日時
   published: boolean;
@@ -39,12 +41,14 @@ export class SimulatorStudioApiError extends Error {}
 export const SIMULATOR_STATUS_LABEL: Record<string, string> = {
   TRIAL: "トライアル",
   ACTIVE: "契約中",
+  CANCELED: "解約済み",
   SUSPENDED: "停止中",
 };
 
 export const SIMULATOR_STATUS_STYLE: Record<string, string> = {
   ACTIVE: "bg-[var(--accent-tint)] text-[var(--accent-strong)]",
   TRIAL: "bg-[var(--gold-tint)] text-[var(--gold)]",
+  CANCELED: "bg-[var(--surface-2)] text-[var(--text-dim)]",
   SUSPENDED: "bg-[var(--surface-2)] text-[var(--text-dim)]",
 };
 
@@ -173,4 +177,14 @@ export async function simulatorDemoLoginUrl(id: string): Promise<string> {
   const data = (await callSimulatorStudio(`/api/levanhub/demos/${encodeURIComponent(id)}/login`, { method: "POST" })) as { url?: string } | null;
   if (!data?.url) throw new SimulatorStudioApiError("ログイン用のURLを取得できませんでした。");
   return data.url;
+}
+
+// ───────────── シークレットプラン（自社・関係先・デモ店舗に無料で付与） ─────────────
+
+/** シークレットプランを付与（enabled: true）・解除（false）する。解除すると店舗は解約済みと同じ扱いになり、自分で有料プランを申し込める */
+export async function setSimulatorSecretPlan(id: string, enabled: boolean) {
+  return (await callSimulatorStudio(`/api/levanhub/tenants/${encodeURIComponent(id)}/secret-plan`, {
+    method: "POST",
+    body: JSON.stringify({ enabled }),
+  })) as { id: string; secretPlan: boolean; planCode: string; status: string };
 }

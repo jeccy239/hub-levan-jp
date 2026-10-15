@@ -31,7 +31,10 @@ const NAV_ITEMS: NavItem[] = [
   {
     href: "/simulator-studio",
     label: "シミュレータースタジオ",
-    children: [{ href: "/simulator-studio", label: "契約店舗一覧" }],
+    children: [
+      { href: "/simulator-studio", label: "契約店舗一覧" },
+      { href: "/simulator-studio/demos", label: "デモページ管理" },
+    ],
   },
 ];
 
